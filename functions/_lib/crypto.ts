@@ -21,7 +21,7 @@ function toArrayBuffer(u8: Uint8Array): ArrayBuffer {
 }
 
 export async function hashPassword(password: string): Promise<string> {
-  const iterations = 100_000;
+  const iterations = 10_000;
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const key = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, [
     'deriveBits',

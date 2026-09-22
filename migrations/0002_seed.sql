@@ -12,11 +12,11 @@ DELETE FROM stock_items;
 DELETE FROM users;
 
 INSERT INTO users (username, password_hash, role, company) VALUES
-  ('admin', 'pbkdf2$100000$ZGVwb3ppdC1idC1zYWx0LWFkbWluLTAx$Ik4o3KzVLe8WmiqXwxqGfx1oQE7eqmQ0SalVZCY8PZw=', 'admin', NULL),
-  ('user1', 'pbkdf2$100000$ZGVwb3ppdC1idC1zYWx0LXVzZXJ4eC0wMQ==$wpu4TmEUFGr/A/oIv2/kgpF/HBaFtxprYZMUxpSYkSk=', 'user1', 'Requester Co'),
-  ('user2', 'pbkdf2$100000$ZGVwb3ppdC1idC1zYWx0LXVzZXJ4eC0wMQ==$wpu4TmEUFGr/A/oIv2/kgpF/HBaFtxprYZMUxpSYkSk=', 'user2', 'Warehouse'),
-  ('user3', 'pbkdf2$100000$ZGVwb3ppdC1idC1zYWx0LXVzZXJ4eC0wMQ==$wpu4TmEUFGr/A/oIv2/kgpF/HBaFtxprYZMUxpSYkSk=', 'user3', 'Courier'),
-  ('user4', 'pbkdf2$100000$ZGVwb3ppdC1idC1zYWx0LXVzZXJ4eC0wMQ==$wpu4TmEUFGr/A/oIv2/kgpF/HBaFtxprYZMUxpSYkSk=', 'user4', 'Return Desk');
+  ('admin', 'pbkdf2$10000$ZGVwb3ppdC1idC1zYWx0LWFkbWluLTAx$F7ISov9iR3o0cSjBakiyKOJQNbAzB0cT5hW+rioaOqo=', 'admin', NULL),
+  ('user1', 'pbkdf2$10000$ZGVwb3ppdC1idC1zYWx0LXVzZXJ4eC0wMQ==$qaGittAl87+h2X5Xjt8dBThLv3QNxrAufoeE2rKzkgw=', 'user1', 'Requester Co'),
+  ('user2', 'pbkdf2$10000$ZGVwb3ppdC1idC1zYWx0LXVzZXJ4eC0wMQ==$qaGittAl87+h2X5Xjt8dBThLv3QNxrAufoeE2rKzkgw=', 'user2', 'Warehouse'),
+  ('user3', 'pbkdf2$10000$ZGVwb3ppdC1idC1zYWx0LXVzZXJ4eC0wMQ==$qaGittAl87+h2X5Xjt8dBThLv3QNxrAufoeE2rKzkgw=', 'user3', 'Courier'),
+  ('user4', 'pbkdf2$10000$ZGVwb3ppdC1idC1zYWx0LXVzZXJ4eC0wMQ==$qaGittAl87+h2X5Xjt8dBThLv3QNxrAufoeE2rKzkgw=', 'user4', 'Return Desk');
 
 INSERT INTO stock_items (sku, barcode, name, company, place, quantity, comments, for_a) VALUES
   ('SKU-001', '5901234123457', 'Palet Euro 800x1200', 'Company A', 'Depozit Nord', 50, 'Standard', 1),

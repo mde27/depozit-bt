@@ -33,17 +33,26 @@ async function handleAuth(ctx: Ctx, parts: string[], method: string): Promise<Re
   if (parts[0] === 'login' && method === 'POST') {
     const body = await readJson<{ username?: string; password?: string }>(request);
     if (!body.username || !body.password) return error('Username și parolă obligatorii');
-    const row = await env.DB.prepare(
-      `SELECT id, username, password_hash, role, company FROM users WHERE username = ?`
-    )
-      .bind(body.username)
-      .first<{
-        id: number;
-        username: string;
-        password_hash: string;
-        role: Role;
-        company: string | null;
-      }>();
+    let row: {
+      id: number;
+      username: string;
+      password_hash: string;
+      role: Role;
+      company: string | null;
+    } | null;
+    try {
+      row = await env.DB.prepare(
+        `SELECT id, username, password_hash, role, company FROM users WHERE username = ?`
+      )
+        .bind(body.username)
+        .first();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return error(
+        `Baza D1 nu are tabelele încă (rulează migrations). Detaliu: ${msg}`,
+        503
+      );
+    }
     if (!row || !(await verifyPassword(body.password, row.password_hash))) {
       return error('Credențiale invalide', 401);
     }
@@ -280,7 +289,7 @@ export const onRequest: PagesFunction<Env> = async (ctx) => {
 
   if (!ctx.env.DB) {
     return error(
-      'Baza D1 nu este legata. �n Pages ? Settings ? Bindings adauga D1 cu numele DB, apoi Redeploy.',
+      'Baza D1 nu este legată. În Pages → Settings → Bindings adaugă D1 cu numele DB, apoi Redeploy.',
       503
     );
   }
