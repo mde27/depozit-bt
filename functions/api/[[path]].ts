@@ -273,7 +273,16 @@ export const onRequest: PagesFunction<Env> = async (ctx) => {
       name: 'Depozit BT',
       flow: 'barcode-pipeline',
       runtime: 'cloudflare-pages',
+      hasDb: Boolean(ctx.env.DB),
+      hasJwt: Boolean(ctx.env.JWT_SECRET),
     });
+  }
+
+  if (!ctx.env.DB) {
+    return error(
+      'Baza D1 nu este legata. În Pages ? Settings ? Bindings adauga D1 cu numele DB, apoi Redeploy.',
+      503
+    );
   }
 
   try {
