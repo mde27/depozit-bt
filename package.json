@@ -1,0 +1,25 @@
+{
+  "name": "depozit-bt",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Depozit BT — Cloudflare Pages + D1 barcode warehouse pipeline",
+  "scripts": {
+    "install:all": "npm install --legacy-peer-deps && npm install --prefix client",
+    "dev:client": "npm run dev --prefix client",
+    "build": "npm run build --prefix client",
+    "build:pages": "npm run build",
+    "pages:dev": "npm run build && wrangler pages dev dist --d1=DB --compatibility-date=2024-11-12",
+    "db:migrate:local": "wrangler d1 migrations apply depozit-bt --local",
+    "db:migrate:remote": "wrangler d1 migrations apply depozit-bt --remote",
+    "deploy": "npm run build && wrangler pages deploy dist",
+    "typecheck:functions": "npx tsc -p functions/tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250317.0",
+    "typescript": "^5.8.2",
+    "wrangler": "^3.112.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
