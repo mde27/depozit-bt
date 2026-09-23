@@ -11,7 +11,7 @@
     "pages:dev": "npm run build && wrangler pages dev dist --d1=DB --compatibility-date=2024-11-12",
     "db:migrate:local": "wrangler d1 migrations apply depozit-bt --local",
     "db:migrate:remote": "wrangler d1 migrations apply depozit-bt --remote",
-    "deploy": "npm run build && wrangler pages deploy dist",
+    "deploy": "npm run build && wrangler pages deploy dist --project-name=depozit-bt --branch=main",
     "typecheck:functions": "npx tsc -p functions/tsconfig.json --noEmit",
     "smiss:build": "node scripts/build-smiss-import.mjs"
   },
