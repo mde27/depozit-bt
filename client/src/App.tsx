@@ -8,6 +8,7 @@ import Tickets from './pages/Tickets';
 import TicketDetail from './pages/TicketDetail';
 import TicketScanPage from './pages/TicketScanPage';
 import Stock from './pages/Stock';
+import StockReceive from './pages/StockReceive';
 import StockMovements from './pages/StockMovements';
 import Logs from './pages/Logs';
 import Users from './pages/Users';
@@ -45,6 +46,7 @@ export default function App() {
         <Route path="tichete/:id" element={<TicketDetail />} />
         <Route path="tichete/:id/scan/:stage" element={<TicketScanPage />} />
         <Route path="stock" element={<Stock />} />
+        <Route path="stock/receive" element={<StockReceive />} />
         <Route path="stock/:id/movements" element={<StockMovements />} />
         <Route path="logs" element={<Logs />} />
         <Route path="users" element={<Users />} />

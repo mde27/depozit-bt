@@ -1,0 +1,1 @@
+﻿ALTER TABLE stock_items ADD COLUMN name2 TEXT;

@@ -1,0 +1,1 @@
+﻿ALTER TABLE stock_items ADD COLUMN is_uncatalogued INTEGER NOT NULL DEFAULT 0;

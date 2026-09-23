@@ -11,3 +11,10 @@ legacy-node/data/
 legacy-node/public/
 .DS_Store
 *.log
+
+# SMISS raw CSVs / large generated seed (zip lives on Desktop)
+smiss-import/
+*.csv
+migrations/smiss-seed/seed_*.sql
+migrations/smiss-seed/*.jsonl
+scripts/_*.mjs

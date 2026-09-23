@@ -150,3 +150,11 @@ ORDERED â†’ (SEND match) SENT â†’ DELIVERED â†’ RETURNING â†’ CLOSED
 - D1 has no Node `better-sqlite3`; all API code uses `env.DB` (Workers runtime only).
 - Full E2E against remote D1 needs your Cloudflare account; local `pages:dev` + migrations is the supported path.
 - `legacy-node/` is obsolete for CF hosting.
+
+## SMISS catalog + Intrare stoc
+
+Secondary D1 table `smiss_catalog` (migration `0003_smiss_catalog.sql`) powers scan-to-add on arrival.
+
+1. Apply schema: paste `migrations/d1-steps-0003/*.sql` one-by-one in D1 Console, **or** `npm run db:migrate:remote` when wrangler is logged in.
+2. Import catalog seed from Desktop zip `smiss-catalog-sql.zip` (or regenerate with `npm run smiss:build`). Paste each `seed_NNN.sql` in D1 Console.
+3. UI: **Intrare stoc** (`/stock/receive`) for admin + user2 — scan code, fill „de unde a venit”, confirm.

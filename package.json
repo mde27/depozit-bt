@@ -12,7 +12,8 @@
     "db:migrate:local": "wrangler d1 migrations apply depozit-bt --local",
     "db:migrate:remote": "wrangler d1 migrations apply depozit-bt --remote",
     "deploy": "npm run build && wrangler pages deploy dist",
-    "typecheck:functions": "npx tsc -p functions/tsconfig.json --noEmit"
+    "typecheck:functions": "npx tsc -p functions/tsconfig.json --noEmit",
+    "smiss:build": "node scripts/build-smiss-import.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250317.0",

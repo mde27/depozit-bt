@@ -75,6 +75,12 @@ export interface StockItem {
   place: string | null;
   quantity: number;
   comments: string | null;
+  mijloc_fix?: string | null;
+  mijloc_fix_orig?: string | null;
+  name2?: string | null;
+  description?: string | null;
+  source_from?: string | null;
+  is_uncatalogued?: number | boolean | null;
 }
 
 export interface ScanLine {

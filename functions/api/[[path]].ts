@@ -18,6 +18,7 @@ import {
   scanPreview,
   ticketAction,
 } from '../_lib/tickets';
+import { lookupCatalog, normalizeScanCode, receiveStock } from '../_lib/catalog';
 
 type Ctx = EventContext<Env, string, Record<string, unknown>>;
 
@@ -122,6 +123,44 @@ async function handleStock(ctx: Ctx, parts: string[], method: string): Promise<R
     return json({ item, movements });
   }
 
+
+  if (method === 'POST' && parts[0] === 'receive') {
+    if (auth.user.role !== 'admin' && auth.user.role !== 'user2') {
+      return error('Acces interzis — doar admin / user2', 403);
+    }
+    const body = await readJson<{
+      code?: string;
+      quantity?: number;
+      source_from?: string;
+      place?: string;
+      company?: string;
+    }>(request);
+    if (!body.code) return error('Cod obligatoriu');
+    if (!body.source_from?.trim()) {
+      return error('Câmpul „de unde a venit” (source_from) este obligatoriu');
+    }
+    try {
+      const result = await receiveStock(env.DB, auth.user, {
+        code: body.code,
+        quantity: body.quantity,
+        source_from: body.source_from,
+        place: body.place,
+        company: body.company,
+      });
+      return json(result, 201);
+    } catch (e: unknown) {
+      const err = e as Error & { status?: number };
+      const msg = err.message || String(e);
+      if (/no such (table|column)/i.test(msg)) {
+        return error(
+          'Schema stoc/catalog incompletă. Aplică migrations/0003_smiss_catalog.sql.',
+          503
+        );
+      }
+      return error(msg, err.status || 400);
+    }
+  }
+
   if (method === 'GET' && parts.length === 0) {
     const place = new URL(request.url).searchParams.get('place')?.trim();
     const { results: items } = place
@@ -188,6 +227,34 @@ async function handleTickets(ctx: Ctx, parts: string[], method: string): Promise
       ...(err.errors ? { errors: err.errors } : {}),
     });
   }
+}
+
+
+async function handleCatalog(ctx: Ctx, parts: string[], method: string): Promise<Response> {
+  const { request, env } = ctx;
+  const auth = await requireUser(request, env);
+  if (auth instanceof Response) return auth;
+
+  if (method === 'GET' && parts[0] === 'lookup') {
+    const code = normalizeScanCode(new URL(request.url).searchParams.get('code') || '');
+    if (!code) return error('Parametrul code este obligatoriu');
+    try {
+      const item = await lookupCatalog(env.DB, code);
+      if (!item) return json({ found: false, code });
+      return json({ found: true, item, code });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (/no such table/i.test(msg)) {
+        return error(
+          'Tabelul smiss_catalog lipsește. Aplică migrations/0003_smiss_catalog.sql și seed-ul SMISS.',
+          503
+        );
+      }
+      throw e;
+    }
+  }
+
+  return error('Not found', 404);
 }
 
 async function handleLogs(ctx: Ctx, method: string): Promise<Response> {
@@ -297,6 +364,7 @@ export const onRequest: PagesFunction<Env> = async (ctx) => {
   try {
     if (parts[0] === 'auth') return handleAuth(ctx, parts.slice(1), method);
     if (parts[0] === 'stock') return handleStock(ctx, parts.slice(1), method);
+    if (parts[0] === 'catalog') return handleCatalog(ctx, parts.slice(1), method);
     if (parts[0] === 'tickets') return handleTickets(ctx, parts.slice(1), method);
     if (parts[0] === 'logs') return handleLogs(ctx, method);
     if (parts[0] === 'users') return handleUsers(ctx, method);
