@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import BarcodeScanner from '../components/BarcodeScanner';
 import { api, ApiError } from '../lib/api';
+import { useAuth } from '../lib/auth';
 import type { StockItem } from '../lib/types';
 
 type CatalogItem = {
@@ -21,9 +22,11 @@ type LookupState =
   | { status: 'miss'; code: string };
 
 export default function StockReceive() {
+  const { user } = useAuth();
   const [manual, setManual] = useState('');
   const [lookup, setLookup] = useState<LookupState>({ status: 'idle' });
   const [sourceFrom, setSourceFrom] = useState('');
+  const [company, setCompany] = useState(user?.company ?? '');
   const [qty, setQty] = useState(1);
   const [place, setPlace] = useState('');
   const [busy, setBusy] = useState(false);
@@ -67,6 +70,7 @@ export default function StockReceive() {
           code: lookup.code,
           quantity: qty,
           source_from: sourceFrom.trim(),
+          company: company.trim() || undefined,
           place: place.trim() || undefined,
         }),
       });
@@ -79,7 +83,7 @@ export default function StockReceive() {
       setLookup({ status: 'idle' });
       setManual('');
       setQty(1);
-      // keep source_from for consecutive scans from same origin
+      // keep source_from and company for consecutive scans from same origin
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Eroare la salvare');
     } finally {
@@ -180,6 +184,15 @@ export default function StockReceive() {
               onChange={(e) => setSourceFrom(e.target.value)}
               placeholder="ex. transfer BT / furnizor / retur magazie…"
               required
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Firmă</label>
+            <input
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+              value={company}
+              onChange={(e) => setCompany(e.target.value)}
+              placeholder="ex. BT / numele firmei"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
