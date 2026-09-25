@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
+import { useAuth } from '../lib/auth';
 import type { StockItem } from '../lib/types';
 
 export default function Stock() {
+  const { user } = useAuth();
+  const isUser1 = user?.role === 'user1';
+  const canReceive = user?.role === 'admin' || user?.role === 'user2';
   const [items, setItems] = useState<StockItem[]>([]);
   const [place, setPlace] = useState('');
   const [places, setPlaces] = useState<string[]>([]);
@@ -33,12 +37,14 @@ export default function Stock() {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h1 className="text-2xl font-bold">Stoc live</h1>
         <div className="flex flex-wrap items-center gap-2">
-          <Link
-            to="/stock/receive"
-            className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-3 py-2 rounded-lg"
-          >
-            + Intrare stoc
-          </Link>
+          {canReceive && (
+            <Link
+              to="/stock/receive"
+              className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-3 py-2 rounded-lg"
+            >
+              + Intrare stoc
+            </Link>
+          )}
           <select
             className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
             value={place}
@@ -56,6 +62,16 @@ export default function Stock() {
           </select>
         </div>
       </div>
+      {isUser1 &&
+        (user?.company?.trim() ? (
+          <p className="text-sm text-slate-600 mb-3">
+            Vezi doar articolele firmei: <strong>{user.company}</strong>
+          </p>
+        ) : (
+          <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
+            Contul tău nu are o firmă setată. Cere administratorului să o completeze.
+          </p>
+        ))}
       {error && <p className="text-red-600 mb-2">{error}</p>}
       <div className="overflow-x-auto bg-white rounded-xl border border-slate-200">
         <table className="min-w-full text-sm">

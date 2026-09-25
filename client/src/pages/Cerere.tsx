@@ -199,7 +199,16 @@ export default function Cerere() {
 
         <section className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-slate-800">Articole din stoc</h2>
+            <div>
+              <h2 className="font-semibold text-slate-800">Articole din stoc</h2>
+              {user?.role === 'user1' && (
+                <p className="text-xs text-slate-500">
+                  {user.company?.trim()
+                    ? `Vezi doar articolele firmei: ${user.company}`
+                    : 'Contul tău nu are o firmă setată. Cere administratorului să o completeze.'}
+                </p>
+              )}
+            </div>
             <button
               type="button"
               className="text-sm text-blue-600 font-medium"

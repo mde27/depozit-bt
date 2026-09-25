@@ -1,4 +1,5 @@
 import type { AuthUser, Env, Role, ScanStage } from './types';
+import { assertCompanySet, isCompanyScoped, stockCompanyScope } from './company';
 
 interface ScanLine {
   barcode: string;
@@ -81,7 +82,12 @@ export async function loadTicket(db: D1Database, id: number) {
   return { ...ticket, info, items, history, scans };
 }
 
-async function resolveScans(db: D1Database, lines: ScanLine[]) {
+/** user1 vede doar tichetele create de el; ceilalți roluri văd tot. */
+export function canViewTicket(user: AuthUser, ticket: Record<string, unknown>): boolean {
+  return user.role !== 'user1' || ticket.created_by === user.username;
+}
+
+async function resolveScans(db: D1Database, lines: ScanLine[], user?: AuthUser) {
   const errors: string[] = [];
   const byBarcode = new Map<string, number>();
   for (const line of lines) {
@@ -98,11 +104,15 @@ async function resolveScans(db: D1Database, lines: ScanLine[]) {
     byBarcode.set(barcode, (byBarcode.get(barcode) || 0) + qty);
   }
 
+  // user1: doar articolele firmei proprii (restul apar ca „necunoscut”)
+  const scope = user ? stockCompanyScope(user) : { sql: '1=1', params: [] };
   const resolved: { barcode: string; qty: number; stock: StockRow }[] = [];
   for (const [barcode, qty] of byBarcode) {
     const stock = (await db
-      .prepare(`SELECT id, sku, barcode, name, quantity FROM stock_items WHERE barcode = ?`)
-      .bind(barcode)
+      .prepare(
+        `SELECT id, sku, barcode, name, quantity FROM stock_items WHERE barcode = ? AND ${scope.sql}`
+      )
+      .bind(barcode, ...scope.params)
       .first()) as StockRow | null;
     if (!stock) {
       errors.push(`Barcode necunoscut: ${barcode}`);
@@ -203,6 +213,39 @@ async function upsertTicketInfo(db: D1Database, ticketId: number, info: Record<s
     .run();
 }
 
+/**
+ * Validează articolele comandate înainte de orice scriere.
+ * user1: fiecare stock_item_id trebuie să aparțină firmei proprii.
+ */
+async function validateTicketItems(
+  db: D1Database,
+  user: AuthUser,
+  items: { stock_item_id: number; ordered_qty: number }[]
+) {
+  assertCompanySet(user);
+  const scope = stockCompanyScope(user);
+  for (const it of items) {
+    const stockId = Number(it.stock_item_id);
+    const qty = Number(it.ordered_qty);
+    if (!stockId || !qty || qty < 1) {
+      throw Object.assign(new Error('Articol invalid'), { status: 400 });
+    }
+    const stock = await db
+      .prepare(`SELECT id FROM stock_items WHERE id = ? AND ${scope.sql}`)
+      .bind(stockId, ...scope.params)
+      .first();
+    if (!stock) {
+      if (isCompanyScoped(user)) {
+        throw Object.assign(
+          new Error(`Articolul #${stockId} nu există sau nu aparține firmei tale (${user.company}).`),
+          { status: 403 }
+        );
+      }
+      throw Object.assign(new Error(`Stock ${stockId} inexistent`), { status: 400 });
+    }
+  }
+}
+
 async function replaceTicketItems(
   db: D1Database,
   ticketId: number,
@@ -299,6 +342,7 @@ export async function createTicket(
   const info = body.info ?? {};
   if (!clientName) throw Object.assign(new Error('client_name obligatoriu'), { status: 400 });
   if (items.length === 0) throw Object.assign(new Error('Cel puțin un articol'), { status: 400 });
+  await validateTicketItems(db, user, items);
 
   const ticketCode = generateTicketCode();
   const ins = await db
@@ -336,18 +380,18 @@ export async function resubmitTicket(
     .prepare(`SELECT * FROM tickets WHERE id = ?`)
     .bind(ticketId)
     .first<{ id: number; status: string; created_by: string; ticket_code: string }>();
-  if (!ticket) throw Object.assign(new Error('Tichet negăsit'), { status: 404 });
+  if (!ticket || !canViewTicket(user, ticket)) {
+    throw Object.assign(new Error('Tichet negăsit'), { status: 404 });
+  }
   if (ticket.status !== 'NEEDS_FIX' && user.role !== 'admin') {
     throw Object.assign(new Error('Editare permisă doar în status NEEDS_FIX'), { status: 400 });
-  }
-  if (user.role === 'user1' && ticket.created_by !== user.username) {
-    throw Object.assign(new Error('Nu este tichetul tău'), { status: 403 });
   }
   const clientName = String(body.client_name ?? '').trim();
   const items = Array.isArray(body.items) ? body.items : [];
   const info = body.info ?? {};
   if (!clientName) throw Object.assign(new Error('client_name obligatoriu'), { status: 400 });
   if (items.length === 0) throw Object.assign(new Error('Cel puțin un articol'), { status: 400 });
+  await validateTicketItems(db, user, items);
 
   await db
     .prepare(
@@ -383,7 +427,10 @@ export async function ticketAction(
     .prepare(`SELECT * FROM tickets WHERE id = ?`)
     .bind(ticketId)
     .first<{ id: number; status: string; ticket_code: string; created_by: string }>();
-  if (!ticket) throw Object.assign(new Error('Tichet negăsit'), { status: 404 });
+  // user1 poate acționa (ex. COMMENT) doar pe tichetele proprii
+  if (!ticket || !canViewTicket(user, ticket)) {
+    throw Object.assign(new Error('Tichet negăsit'), { status: 404 });
+  }
 
   const action = String(body.action ?? '').toUpperCase();
   const comment = body.comment != null ? String(body.comment) : null;
@@ -404,7 +451,7 @@ export async function ticketAction(
       let resolved: { barcode: string; qty: number; stock: StockRow }[] = [];
       let comparison = null;
       if (lines.length) {
-        const r = await resolveScans(db, lines);
+        const r = await resolveScans(db, lines, user);
         if (r.errors.length) throw Object.assign(new Error(r.errors.join('; ')), { status: 400 });
         resolved = r.resolved;
         comparison = await compareToOrder(db, ticketId, resolved);
@@ -441,7 +488,7 @@ export async function ticketAction(
       if (!lines.length) {
         throw Object.assign(new Error('Scanează cel puțin un articol'), { status: 400 });
       }
-      const { resolved, errors } = await resolveScans(db, lines);
+      const { resolved, errors } = await resolveScans(db, lines, user);
       if (errors.length) throw Object.assign(new Error(errors.join('; ')), { status: 400 });
       const comparison = await compareToOrder(db, ticketId, resolved);
       if (!comparison.match) {
@@ -521,7 +568,7 @@ export async function ticketAction(
         throw Object.assign(new Error('Status trebuie să fie SENT'), { status: 400 });
       }
       if (!lines.length) throw Object.assign(new Error('Scanează ce s-a livrat'), { status: 400 });
-      const { resolved, errors } = await resolveScans(db, lines);
+      const { resolved, errors } = await resolveScans(db, lines, user);
       if (errors.length) throw Object.assign(new Error(errors.join('; ')), { status: 400 });
 
       for (const r of resolved) {
@@ -572,7 +619,7 @@ export async function ticketAction(
       if (!lines.length) {
         throw Object.assign(new Error('Scanează ce se returnează'), { status: 400 });
       }
-      const { resolved, errors } = await resolveScans(db, lines);
+      const { resolved, errors } = await resolveScans(db, lines, user);
       if (errors.length) throw Object.assign(new Error(errors.join('; ')), { status: 400 });
 
       for (const r of resolved) {
@@ -623,7 +670,7 @@ export async function ticketAction(
       if (!lines.length) {
         throw Object.assign(new Error('Scanează ce s-a primit înapoi'), { status: 400 });
       }
-      const { resolved, errors } = await resolveScans(db, lines);
+      const { resolved, errors } = await resolveScans(db, lines, user);
       if (errors.length) throw Object.assign(new Error(errors.join('; ')), { status: 400 });
 
       const stmts: D1PreparedStatement[] = [];
@@ -736,12 +783,18 @@ export async function ticketAction(
 
 export async function scanPreview(
   db: D1Database,
+  user: AuthUser,
   ticketId: number,
   lines: ScanLine[]
 ) {
-  const ticket = await db.prepare(`SELECT id FROM tickets WHERE id = ?`).bind(ticketId).first();
-  if (!ticket) throw Object.assign(new Error('Tichet negăsit'), { status: 404 });
-  const { resolved, errors } = await resolveScans(db, lines);
+  const ticket = await db
+    .prepare(`SELECT id, created_by FROM tickets WHERE id = ?`)
+    .bind(ticketId)
+    .first<{ id: number; created_by: string }>();
+  if (!ticket || !canViewTicket(user, ticket)) {
+    throw Object.assign(new Error('Tichet negăsit'), { status: 404 });
+  }
+  const { resolved, errors } = await resolveScans(db, lines, user);
   if (errors.length) throw Object.assign(new Error(errors.join('; ')), { status: 400, errors });
   const comparison = await compareToOrder(db, ticketId, resolved);
   return {

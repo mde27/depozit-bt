@@ -10,6 +10,7 @@ import {
 } from '../_lib/http';
 import { hashPassword, signJwt, verifyPassword } from '../_lib/crypto';
 import {
+  canViewTicket,
   createTicket,
   listTickets,
   loadTicket,
@@ -19,6 +20,15 @@ import {
   ticketAction,
 } from '../_lib/tickets';
 import { lookupCatalog, normalizeScanCode, receiveStock } from '../_lib/catalog';
+import {
+  NO_COMPANY_MESSAGE,
+  isCompanyScoped,
+  missingCompany,
+  normalizeCompany,
+  stockCompanyScope,
+} from '../_lib/company';
+
+const VALID_ROLES: Role[] = ['admin', 'user1', 'user2', 'user3', 'user4'];
 
 type Ctx = EventContext<Env, string, Record<string, unknown>>;
 
@@ -99,17 +109,26 @@ async function handleStock(ctx: Ctx, parts: string[], method: string): Promise<R
   const auth = await requireUser(request, env);
   if (auth instanceof Response) return auth;
 
+  // user1 vede doar stocul firmei proprii (admin / user2 / user3 / user4 văd tot)
+  const scope = stockCompanyScope(auth.user);
+
   if (method === 'GET' && parts[0] === 'by-barcode' && parts[1]) {
-    const item = await env.DB.prepare(`SELECT * FROM stock_items WHERE barcode = ?`)
-      .bind(decodeURIComponent(parts[1]))
+    if (missingCompany(auth.user)) return error(NO_COMPANY_MESSAGE, 403);
+    const item = await env.DB.prepare(
+      `SELECT * FROM stock_items WHERE barcode = ? AND ${scope.sql}`
+    )
+      .bind(decodeURIComponent(parts[1]), ...scope.params)
       .first();
     if (!item) return error('Barcode necunoscut', 404);
     return json({ item });
   }
 
   if (method === 'GET' && parts[0] && parts[1] === 'movements') {
+    if (missingCompany(auth.user)) return error(NO_COMPANY_MESSAGE, 403);
     const id = Number(parts[0]);
-    const item = await env.DB.prepare(`SELECT * FROM stock_items WHERE id = ?`).bind(id).first();
+    const item = await env.DB.prepare(`SELECT * FROM stock_items WHERE id = ? AND ${scope.sql}`)
+      .bind(id, ...scope.params)
+      .first();
     if (!item) return error('Articol negăsit', 404);
     const { results: movements } = await env.DB.prepare(
       `SELECT m.*, t.ticket_code
@@ -162,12 +181,17 @@ async function handleStock(ctx: Ctx, parts: string[], method: string): Promise<R
   }
 
   if (method === 'GET' && parts.length === 0) {
+    if (missingCompany(auth.user)) return json({ items: [] });
     const place = new URL(request.url).searchParams.get('place')?.trim();
     const { results: items } = place
-      ? await env.DB.prepare(`SELECT * FROM stock_items WHERE place = ? ORDER BY name`)
-          .bind(place)
+      ? await env.DB.prepare(
+          `SELECT * FROM stock_items WHERE place = ? AND ${scope.sql} ORDER BY name`
+        )
+          .bind(place, ...scope.params)
           .all()
-      : await env.DB.prepare(`SELECT * FROM stock_items ORDER BY name`).all();
+      : await env.DB.prepare(`SELECT * FROM stock_items WHERE ${scope.sql} ORDER BY name`)
+          .bind(...scope.params)
+          .all();
     return json({ items });
   }
 
@@ -196,7 +220,8 @@ async function handleTickets(ctx: Ctx, parts: string[], method: string): Promise
 
     if (method === 'GET' && parts.length === 1) {
       const ticket = await loadTicket(env.DB, id);
-      if (!ticket) return error('Tichet negăsit', 404);
+      // user1 vede doar tichetele create de el
+      if (!ticket || !canViewTicket(auth.user, ticket)) return error('Tichet negăsit', 404);
       return json({ ticket });
     }
 
@@ -208,7 +233,7 @@ async function handleTickets(ctx: Ctx, parts: string[], method: string): Promise
 
     if (method === 'POST' && parts[1] === 'scan-preview') {
       const body = await readJson<{ scans?: { barcode: string; qty: number }[] }>(request);
-      const result = await scanPreview(env.DB, id, body.scans || []);
+      const result = await scanPreview(env.DB, auth.user, id, body.scans || []);
       return json(result);
     }
 
@@ -263,68 +288,112 @@ async function handleLogs(ctx: Ctx, method: string): Promise<Response> {
   if (auth instanceof Response) return auth;
   if (method !== 'GET') return error('Method not allowed', 405);
   const q = new URL(request.url).searchParams.get('q')?.trim() || '';
+  // user1: doar propriile intrări (jurnalul conține detalii de stoc / tichete ale altor firme)
+  const own = isCompanyScoped(auth.user);
+  const ownSql = own ? ' AND username = ?' : '';
+  const ownParams = own ? [auth.user.username] : [];
   let logs;
   if (q) {
     const like = `%${q}%`;
     const { results } = await env.DB.prepare(
       `SELECT * FROM activity_logs
-       WHERE username LIKE ? OR action LIKE ? OR details LIKE ? OR role LIKE ?
+       WHERE (username LIKE ? OR action LIKE ? OR details LIKE ? OR role LIKE ?)${ownSql}
        ORDER BY id DESC LIMIT 500`
     )
-      .bind(like, like, like, like)
+      .bind(like, like, like, like, ...ownParams)
       .all();
     logs = results;
   } else {
     const { results } = await env.DB.prepare(
-      `SELECT * FROM activity_logs ORDER BY id DESC LIMIT 500`
-    ).all();
+      `SELECT * FROM activity_logs WHERE 1=1${ownSql} ORDER BY id DESC LIMIT 500`
+    )
+      .bind(...ownParams)
+      .all();
     logs = results;
   }
   return json({ logs });
 }
 
-async function handleUsers(ctx: Ctx, method: string): Promise<Response> {
+async function handleCompanies(ctx: Ctx, method: string): Promise<Response> {
+  const { request, env } = ctx;
+  const auth = await requireUser(request, env);
+  if (auth instanceof Response) return auth;
+  if (method !== 'GET') return error('Method not allowed', 405);
+
+  // user1 nu are nevoie de lista altor firme — primește doar firma proprie
+  if (isCompanyScoped(auth.user)) {
+    const own = normalizeCompany(auth.user.company);
+    return json({ companies: own ? [own] : [] });
+  }
+
+  const { results } = await env.DB.prepare(
+    `SELECT TRIM(company) AS name, COUNT(*) AS n FROM (
+       SELECT company FROM users
+       UNION ALL
+       SELECT company FROM stock_items
+     )
+     WHERE company IS NOT NULL AND TRIM(company) != ''
+     GROUP BY TRIM(company)
+     ORDER BY n DESC`
+  ).all<{ name: string; n: number }>();
+  // Variante care diferă doar prin majuscule → păstrăm scrierea cea mai folosită
+  const byKey = new Map<string, string>();
+  for (const r of results || []) {
+    const key = r.name.toLowerCase();
+    if (!byKey.has(key)) byKey.set(key, r.name);
+  }
+  const companies = [...byKey.values()].sort((a, b) =>
+    a.localeCompare(b, 'ro', { sensitivity: 'base' })
+  );
+  return json({ companies });
+}
+
+async function handleUsers(ctx: Ctx, parts: string[], method: string): Promise<Response> {
   const { request, env } = ctx;
   const auth = await requireUser(request, env);
   if (auth instanceof Response) return auth;
   if (auth.user.role !== 'admin') return error('Acces interzis', 403);
 
-  if (method === 'GET') {
+  if (method === 'GET' && parts.length === 0) {
     const { results: users } = await env.DB.prepare(
       `SELECT id, username, role, company, created_at FROM users ORDER BY id`
     ).all();
     return json({ users });
   }
 
-  if (method === 'POST') {
+  if (method === 'POST' && parts.length === 0) {
     const body = await readJson<{
       username?: string;
       password?: string;
       role?: string;
-      company?: string;
+      company?: string | null;
     }>(request);
     if (!body.username || !body.password || !body.role) {
       return error('username, password, role obligatorii');
     }
-    const valid = ['admin', 'user1', 'user2', 'user3', 'user4'];
-    if (!valid.includes(body.role)) return error('Rol invalid');
+    if (!VALID_ROLES.includes(body.role as Role)) return error('Rol invalid');
+    const company = normalizeCompany(body.company);
+    if (body.role === 'user1' && !company) {
+      return error('Firma este obligatorie pentru utilizatorii user1');
+    }
     const hash = await hashPassword(body.password);
     try {
       const info = await env.DB.prepare(
         `INSERT INTO users (username, password_hash, role, company) VALUES (?, ?, ?, ?)`
       )
-        .bind(body.username, hash, body.role, body.company ?? null)
+        .bind(body.username, hash, body.role, company)
         .run();
       await logActivity(env.DB, auth.user.username, auth.user.role, 'CREATE_USER', {
         username: body.username,
         role: body.role,
+        company,
       });
       return json(
         {
           id: info.meta.last_row_id,
           username: body.username,
           role: body.role,
-          company: body.company ?? null,
+          company,
         },
         201
       );
@@ -333,6 +402,56 @@ async function handleUsers(ctx: Ctx, method: string): Promise<Response> {
       if (/UNIQUE/i.test(msg)) return error('Username există deja', 409);
       throw e;
     }
+  }
+
+  if (method === 'PUT' && parts.length === 1) {
+    const id = Number(parts[0]);
+    if (!id) return error('Utilizator negăsit', 404);
+    const existing = await env.DB.prepare(
+      `SELECT id, username, role, company FROM users WHERE id = ?`
+    )
+      .bind(id)
+      .first<{ id: number; username: string; role: Role; company: string | null }>();
+    if (!existing) return error('Utilizator negăsit', 404);
+
+    const body = await readJson<{
+      role?: string;
+      company?: string | null;
+      password?: string;
+    }>(request);
+    const role = (body.role ?? existing.role) as Role;
+    if (!VALID_ROLES.includes(role)) return error('Rol invalid');
+    const company =
+      body.company !== undefined ? normalizeCompany(body.company) : normalizeCompany(existing.company);
+    if (role === 'user1' && !company) {
+      return error('Firma este obligatorie pentru utilizatorii user1');
+    }
+    if (existing.id === auth.user.id && role !== 'admin') {
+      return error('Nu îți poți elimina propriul rol de admin');
+    }
+    const password = typeof body.password === 'string' ? body.password : '';
+    const resetPassword = password.trim().length > 0;
+
+    if (resetPassword) {
+      const hash = await hashPassword(password);
+      await env.DB.prepare(
+        `UPDATE users SET role = ?, company = ?, password_hash = ? WHERE id = ?`
+      )
+        .bind(role, company, hash, id)
+        .run();
+    } else {
+      await env.DB.prepare(`UPDATE users SET role = ?, company = ? WHERE id = ?`)
+        .bind(role, company, id)
+        .run();
+    }
+    await logActivity(env.DB, auth.user.username, auth.user.role, 'UPDATE_USER', {
+      id,
+      username: existing.username,
+      from: { role: existing.role, company: existing.company },
+      to: { role, company },
+      passwordReset: resetPassword,
+    });
+    return json({ id, username: existing.username, role, company });
   }
 
   return error('Method not allowed', 405);
@@ -367,7 +486,8 @@ export const onRequest: PagesFunction<Env> = async (ctx) => {
     if (parts[0] === 'catalog') return handleCatalog(ctx, parts.slice(1), method);
     if (parts[0] === 'tickets') return handleTickets(ctx, parts.slice(1), method);
     if (parts[0] === 'logs') return handleLogs(ctx, method);
-    if (parts[0] === 'users') return handleUsers(ctx, method);
+    if (parts[0] === 'users') return handleUsers(ctx, parts.slice(1), method);
+    if (parts[0] === 'companies') return handleCompanies(ctx, method);
     return error('Not found', 404);
   } catch (e: unknown) {
     console.error(e);

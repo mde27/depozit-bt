@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import BarcodeScanner from '../components/BarcodeScanner';
 import { api, ApiError } from '../lib/api';
-import { useAuth } from '../lib/auth';
+import { useCompanies } from '../lib/companies';
 import type { StockItem } from '../lib/types';
 
 type CatalogItem = {
@@ -22,11 +22,11 @@ type LookupState =
   | { status: 'miss'; code: string };
 
 export default function StockReceive() {
-  const { user } = useAuth();
+  const { companies, reload: reloadCompanies } = useCompanies();
   const [manual, setManual] = useState('');
   const [lookup, setLookup] = useState<LookupState>({ status: 'idle' });
   const [sourceFrom, setSourceFrom] = useState('');
-  const [company, setCompany] = useState(user?.company ?? '');
+  const [company, setCompany] = useState('');
   const [qty, setQty] = useState(1);
   const [place, setPlace] = useState('');
   const [busy, setBusy] = useState(false);
@@ -56,6 +56,10 @@ export default function StockReceive() {
 
   async function confirm() {
     if (lookup.status !== 'hit' && lookup.status !== 'miss') return;
+    if (!company.trim()) {
+      setError('Completează „Firmă”');
+      return;
+    }
     if (!sourceFrom.trim()) {
       setError('Completează „De unde a venit”');
       return;
@@ -70,7 +74,7 @@ export default function StockReceive() {
           code: lookup.code,
           quantity: qty,
           source_from: sourceFrom.trim(),
-          company: company.trim() || undefined,
+          company: company.trim(),
           place: place.trim() || undefined,
         }),
       });
@@ -83,6 +87,7 @@ export default function StockReceive() {
       setLookup({ status: 'idle' });
       setManual('');
       setQty(1);
+      void reloadCompanies();
       // keep source_from and company for consecutive scans from same origin
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Eroare la salvare');
@@ -187,13 +192,23 @@ export default function StockReceive() {
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Firmă</label>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Firmă <span className="text-red-600">*</span></label>
             <input
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
               value={company}
               onChange={(e) => setCompany(e.target.value)}
               placeholder="ex. BT / numele firmei"
+              list="stock-receive-companies"
+              autoComplete="off"
             />
+            <datalist id="stock-receive-companies">
+              {companies.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
+            <p className="text-[11px] text-slate-500 mt-1">
+              Alege o firmă existentă din listă — doar user1 din aceeași firmă vor vedea articolul.
+            </p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -220,7 +235,7 @@ export default function StockReceive() {
           </div>
           <button
             type="button"
-            disabled={busy || !sourceFrom.trim()}
+            disabled={busy || !sourceFrom.trim() || !company.trim()}
             onClick={() => void confirm()}
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold px-4 py-2.5 rounded-lg text-sm"
           >

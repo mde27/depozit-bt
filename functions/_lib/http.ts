@@ -63,12 +63,30 @@ export async function requireUser(
   if (!payload?.id || !payload.username || !payload.role) {
     return error('Sesiune invalidă', 401);
   }
+  // Rol / firmă se recitesc din DB, ca modificările făcute de admin să se aplice imediat
+  // (fără re-login). Dacă DB nu e disponibil, cădem pe valorile din JWT.
+  let row: { id: number; username: string; role: AuthUser['role']; company: string | null } | null;
+  try {
+    row = await env.DB.prepare(`SELECT id, username, role, company FROM users WHERE id = ?`)
+      .bind(payload.id)
+      .first();
+  } catch {
+    return {
+      user: {
+        id: payload.id,
+        username: payload.username,
+        role: payload.role,
+        company: payload.company ?? null,
+      },
+    };
+  }
+  if (!row) return error('Sesiune invalidă', 401);
   return {
     user: {
-      id: payload.id,
-      username: payload.username,
-      role: payload.role,
-      company: payload.company ?? null,
+      id: row.id,
+      username: row.username,
+      role: row.role,
+      company: row.company ?? null,
     },
   };
 }
