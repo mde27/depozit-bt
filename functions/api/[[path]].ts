@@ -20,6 +20,7 @@ import {
   ticketAction,
 } from '../_lib/tickets';
 import { lookupCatalog, normalizeScanCode, receiveStock } from '../_lib/catalog';
+import { canManageStock, deleteStockItem, updateStockItem } from '../_lib/stock';
 import {
   NO_COMPANY_MESSAGE,
   isCompanyScoped,
@@ -177,6 +178,27 @@ async function handleStock(ctx: Ctx, parts: string[], method: string): Promise<R
         );
       }
       return error(msg, err.status || 400);
+    }
+  }
+
+  if ((method === 'PUT' || method === 'DELETE') && parts.length === 1) {
+    if (!canManageStock(auth.user)) return error('Acces interzis — doar admin / user2', 403);
+    const id = Number(parts[0]);
+    if (!Number.isInteger(id) || id <= 0) return error('Articol negăsit', 404);
+    try {
+      if (method === 'PUT') {
+        const body = await readJson<Record<string, unknown>>(request);
+        const item = await updateStockItem(env.DB, auth.user, id, body);
+        return json({ item });
+      }
+      const result = await deleteStockItem(env.DB, auth.user, id);
+      return json({ ok: true, ...result });
+    } catch (e: unknown) {
+      const err = e as Error & { status?: number };
+      if (/FOREIGN KEY/i.test(err.message || '')) {
+        return error('Articolul este referit în alte înregistrări și nu poate fi șters.', 409);
+      }
+      return error(err.message || 'Eroare', err.status || 400);
     }
   }
 

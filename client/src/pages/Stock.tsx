@@ -1,17 +1,45 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api } from '../lib/api';
+import { api, ApiError } from '../lib/api';
 import { useAuth } from '../lib/auth';
+import { useCompanies } from '../lib/companies';
 import type { StockItem } from '../lib/types';
+import ConfirmDialog from '../components/ConfirmDialog';
+import StockEditModal from '../components/StockEditModal';
 
 export default function Stock() {
   const { user } = useAuth();
   const isUser1 = user?.role === 'user1';
   const canReceive = user?.role === 'admin' || user?.role === 'user2';
+  // Editare / ștergere: doar admin și user2 (verificat și în backend)
+  const canManage = canReceive;
+  const { companies, reload: reloadCompanies } = useCompanies();
   const [items, setItems] = useState<StockItem[]>([]);
   const [place, setPlace] = useState('');
   const [places, setPlaces] = useState<string[]>([]);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [editing, setEditing] = useState<StockItem | null>(null);
+  const [deleting, setDeleting] = useState<StockItem | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
+  async function confirmDelete() {
+    if (!deleting) return;
+    setDeleteBusy(true);
+    setDeleteError('');
+    try {
+      await api(`/api/stock/${deleting.id}`, { method: 'DELETE' });
+      setNotice(`Articolul „${deleting.name}” a fost șters.`);
+      setDeleting(null);
+      await load();
+      void reloadCompanies();
+    } catch (e) {
+      setDeleteError(e instanceof ApiError ? e.message : 'Eroare la ștergere');
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
 
   async function load(p = place) {
     try {
@@ -73,6 +101,19 @@ export default function Stock() {
           </p>
         ))}
       {error && <p className="text-red-600 mb-2">{error}</p>}
+      {notice && (
+        <div className="mb-3 text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 flex items-start justify-between gap-2">
+          <span>{notice}</span>
+          <button
+            type="button"
+            onClick={() => setNotice('')}
+            className="text-emerald-700 leading-none px-1"
+            aria-label="Închide"
+          >
+            ×
+          </button>
+        </div>
+      )}
       <div className="overflow-x-auto bg-white rounded-xl border border-slate-200">
         <table className="min-w-full text-sm">
           <thead className="bg-slate-50 text-left">
@@ -86,6 +127,7 @@ export default function Stock() {
               <th className="px-3 py-2">Companie</th>
               <th className="px-3 py-2 text-right">Cant.</th>
               <th className="px-3 py-2">Ledger</th>
+              {canManage && <th className="px-3 py-2">Acțiuni</th>}
             </tr>
           </thead>
           <tbody>
@@ -137,12 +179,75 @@ export default function Stock() {
                       Mișcări
                     </Link>
                   </td>
+                  {canManage && (
+                    <td className="px-3 py-2">
+                      <div className="flex gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNotice('');
+                            setEditing(it);
+                          }}
+                          className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100"
+                        >
+                          Editează
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNotice('');
+                            setDeleteError('');
+                            setDeleting(it);
+                          }}
+                          className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100"
+                        >
+                          Șterge
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
+
+      {editing && (
+        <StockEditModal
+          item={editing}
+          companies={companies}
+          onClose={() => setEditing(null)}
+          onSaved={(saved) => {
+            setEditing(null);
+            setNotice(`Modificări salvate pentru „${saved.name}”.`);
+            void load();
+            void reloadCompanies();
+          }}
+        />
+      )}
+
+      <ConfirmDialog
+        open={Boolean(deleting)}
+        title="Șterge articol"
+        message={
+          <p>
+            Sigur ștergi articolul <strong>{deleting?.name}</strong>
+            {deleting?.sku ? <span className="font-mono text-xs"> ({deleting.sku})</span> : null}?
+            Acțiunea nu poate fi anulată.
+          </p>
+        }
+        confirmLabel="Șterge"
+        cancelLabel={deleteError ? 'Închide' : 'Anulează'}
+        danger
+        busy={deleteBusy}
+        error={deleteError}
+        onConfirm={() => void confirmDelete()}
+        onCancel={() => {
+          setDeleting(null);
+          setDeleteError('');
+        }}
+      />
     </div>
   );
 }

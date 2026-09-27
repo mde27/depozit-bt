@@ -14,6 +14,10 @@ interface Movement {
   ticket_id: number | null;
 }
 
+const REASON_LABELS: Record<string, string> = {
+  MANUAL_EDIT: 'Corecție manuală (editare)',
+};
+
 export default function StockMovements() {
   const { id } = useParams();
   const [item, setItem] = useState<Record<string, unknown> | null>(null);
@@ -60,7 +64,7 @@ export default function StockMovements() {
             {movements.map((m) => (
               <tr key={m.id} className="border-t border-slate-100">
                 <td className="px-3 py-2 whitespace-nowrap text-slate-500">{m.created_at}</td>
-                <td className="px-3 py-2 font-medium">{m.reason}</td>
+                <td className="px-3 py-2 font-medium">{REASON_LABELS[m.reason] || m.reason}</td>
                 <td
                   className={`px-3 py-2 text-right font-semibold tabular-nums ${
                     m.delta < 0 ? 'text-red-600' : 'text-emerald-600'
