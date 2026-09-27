@@ -1,0 +1,152 @@
+# Weekly encrypted backup of the Cloudflare D1 database "depozit-bt".
+#
+# Schedule: every Sunday 19:00 UTC
+#   = 22:00 Romania time in summer (EEST, UTC+3)
+#   = 21:00 Romania time in winter (EET,  UTC+2)
+# GitHub may start scheduled runs a few minutes late. It can also be started
+# by hand: Actions tab -> "D1 weekly backup" -> "Run workflow".
+#
+# This repo is PUBLIC. Any logged-in GitHub user can download artifacts of a
+# public repo, so the dump is gzip-compressed and then AES-256 encrypted with
+# the BACKUP_PASSPHRASE secret BEFORE it is uploaded. The plain .sql never
+# leaves the runner. See docs/BACKUP-RESTORE.md for decrypt/restore steps.
+#
+# Required repository secrets (Settings -> Secrets and variables -> Actions):
+#   CLOUDFLARE_API_TOKEN   account API token with  Account -> D1 -> Edit
+#   CLOUDFLARE_ACCOUNT_ID  6ce6feabe9fe6a75709ff372dd0b359a
+#   BACKUP_PASSPHRASE      long random passphrase (keep a copy offline!)
+
+name: D1 weekly backup
+
+on:
+  schedule:
+    - cron: "0 19 * * 0" # Sunday 19:00 UTC (22:00 RO summer / 21:00 RO winter)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: d1-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DB_NAME: depozit-bt
+      # Fail if the plain SQL dump is smaller than this (bytes). The live DB
+      # (with the 45k-row SMISS catalog) exports to roughly 10 MB.
+      MIN_SQL_BYTES: "1000000"
+      # Must match the decrypt command in docs/BACKUP-RESTORE.md.
+      PBKDF2_ITER: "200000"
+      WRANGLER_SEND_METRICS: "false"
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+
+    steps:
+      - name: Check that secrets are set
+        run: |
+          missing=0
+          for s in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID BACKUP_PASSPHRASE; do
+            if [ -z "${!s}" ]; then echo "::error::Repository secret $s is not set"; missing=1; fi
+          done
+          if [ "${#BACKUP_PASSPHRASE}" -lt 16 ] && [ -n "$BACKUP_PASSPHRASE" ]; then
+            echo "::error::BACKUP_PASSPHRASE is too short (use at least 16 characters)"; missing=1
+          fi
+          exit $missing
+
+      - name: Checkout (for wrangler.toml + package-lock.json only)
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      # Installs only the root devDependencies (wrangler, typescript, workers-types)
+      # at the exact versions in package-lock.json. No client install, no build.
+      - name: Install wrangler (root package-lock only)
+        run: npm ci --no-audit --no-fund
+
+      - name: Pick backup name
+        run: |
+          stamp="$(TZ=Europe/Bucharest date +%Y-%m-%d_%H%M)"
+          echo "BACKUP_BASENAME=depozit-bt-${stamp}" >> "$GITHUB_ENV"
+          echo "ARTIFACT_NAME=d1-backup-depozit-bt-${stamp}-run${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
+          umask 077
+          mkdir -p "$RUNNER_TEMP/d1backup"
+
+      - name: Export D1 database (remote)
+        run: |
+          umask 077
+          npx wrangler --version
+          npx wrangler d1 export "$DB_NAME" --remote --output="$RUNNER_TEMP/d1backup/backup.sql"
+
+      - name: Sanity-check dump and print row counts (no data)
+        run: |
+          f="$RUNNER_TEMP/d1backup/backup.sql"
+          if [ ! -s "$f" ]; then echo "::error::Export file is missing or EMPTY"; exit 1; fi
+          size=$(stat -c %s "$f")
+          echo "Plain SQL size: $size bytes"
+          if [ "$size" -lt "$MIN_SQL_BYTES" ]; then
+            echo "::error::Export is only $size bytes (< $MIN_SQL_BYTES). Refusing to keep a suspicious backup."
+            exit 1
+          fi
+          for t in users stock_items tickets smiss_catalog; do
+            if ! grep -Eq "^CREATE TABLE \"?$t\"? ?\(" "$f"; then
+              echo "::error::Table $t not found in export"; exit 1
+            fi
+          done
+          if ! grep -Eq '^INSERT INTO "?users"? ' "$f"; then
+            echo "::error::users table has no rows in export"; exit 1
+          fi
+          {
+            echo "### D1 backup ${BACKUP_BASENAME}"
+            echo ""
+            echo "Plain SQL size: ${size} bytes"
+            echo ""
+            echo "| table | rows (INSERT lines) |"
+            echo "|---|---|"
+            grep -oE '^INSERT INTO "?[A-Za-z0-9_]+"?' "$f" \
+              | sed -E 's/^INSERT INTO "?([A-Za-z0-9_]+)"?/\1/' \
+              | sort | uniq -c | awk '{printf "| %s | %s |\n", $2, $1}'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Compress + encrypt (AES-256-CBC, PBKDF2)
+        run: |
+          set -euo pipefail
+          umask 077
+          cd "$RUNNER_TEMP/d1backup"
+          gzip -9 -c backup.sql > backup.sql.gz
+          openssl enc -aes-256-cbc -pbkdf2 -iter "$PBKDF2_ITER" -md sha256 -salt \
+            -pass env:BACKUP_PASSPHRASE \
+            -in backup.sql.gz -out "${BACKUP_BASENAME}.sql.gz.enc"
+          # Round-trip check: decrypt + gunzip must give back the identical file.
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter "$PBKDF2_ITER" -md sha256 \
+            -pass env:BACKUP_PASSPHRASE \
+            -in "${BACKUP_BASENAME}.sql.gz.enc" | gunzip -c | cmp - backup.sql
+          echo "Encrypted file: ${BACKUP_BASENAME}.sql.gz.enc ($(stat -c %s "${BACKUP_BASENAME}.sql.gz.enc") bytes)"
+          sha256sum "${BACKUP_BASENAME}.sql.gz.enc" | tee "${BACKUP_BASENAME}.sql.gz.enc.sha256"
+          # Remove every unencrypted copy before anything is uploaded.
+          rm -f backup.sql backup.sql.gz
+
+      - name: Upload encrypted backup as artifact (90 days)
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: |
+            ${{ runner.temp }}/d1backup/${{ env.BACKUP_BASENAME }}.sql.gz.enc
+            ${{ runner.temp }}/d1backup/${{ env.BACKUP_BASENAME }}.sql.gz.enc.sha256
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0 # already compressed + encrypted
+
+      - name: Clean up
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/d1backup"
