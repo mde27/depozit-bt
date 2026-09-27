@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
+import { formatRoTime } from '../lib/time';
 import StatusBadge from '../components/StatusBadge';
 import { useAuth } from '../lib/auth';
 import type { Ticket } from '../lib/types';
@@ -90,7 +91,7 @@ export default function Tickets() {
                   <StatusBadge status={t.status} />
                 </td>
                 <td className="px-3 py-2">{t.created_by}</td>
-                <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{t.updated_at}</td>
+                <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{formatRoTime(t.updated_at)}</td>
               </tr>
             ))}
             {tickets.length === 0 && (

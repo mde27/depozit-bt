@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
+import { formatRoTime } from '../lib/time';
 
 interface Movement {
   id: number;
@@ -67,7 +68,7 @@ export default function StockMovements() {
           <tbody>
             {movements.map((m) => (
               <tr key={m.id} className="border-t border-slate-100">
-                <td className="px-3 py-2 whitespace-nowrap text-slate-500">{m.created_at}</td>
+                <td className="px-3 py-2 whitespace-nowrap text-slate-500">{formatRoTime(m.created_at)}</td>
                 <td className="px-3 py-2 font-medium">{REASON_LABELS[m.reason] || m.reason}</td>
                 <td
                   className={`px-3 py-2 text-right font-semibold tabular-nums ${

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { formatRoTime } from '../lib/time';
 import { ROLE_LABELS, type Role } from '../lib/auth';
 import { ACTIVITY_LABELS } from '../lib/labels';
 
@@ -66,7 +67,7 @@ export default function Logs() {
           <tbody>
             {logs.map((l) => (
               <tr key={l.id} className="border-t border-slate-100">
-                <td className="px-3 py-2 whitespace-nowrap text-slate-500">{l.timestamp}</td>
+                <td className="px-3 py-2 whitespace-nowrap text-slate-500">{formatRoTime(l.timestamp)}</td>
                 <td className="px-3 py-2 font-medium">{l.username}</td>
                 <td className="px-3 py-2">{ROLE_LABELS[l.role as Role] ?? l.role}</td>
                 <td className="px-3 py-2">{ACTIVITY_LABELS[l.action] ?? l.action}</td>

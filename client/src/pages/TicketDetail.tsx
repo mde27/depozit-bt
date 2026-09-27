@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
+import { formatRoTime } from '../lib/time';
 import StatusBadge from '../components/StatusBadge';
 import { useAuth } from '../lib/auth';
 import type { Ticket } from '../lib/types';
@@ -153,7 +154,7 @@ export default function TicketDetail() {
           <ul className="text-xs space-y-1 max-h-48 overflow-y-auto">
             {ticket.scans!.map((s) => (
               <li key={s.id} className="text-slate-600">
-                <span className="text-slate-400">{s.created_at}</span> ·{' '}
+                <span className="text-slate-400">{formatRoTime(s.created_at)}</span> ·{' '}
                 {SCAN_STAGE_LABELS[s.stage] || s.stage} ·{' '}
                 <span className="font-mono">{s.barcode}</span> ×{s.qty} · {s.created_by}
                 {s.stock_name ? ` · ${s.stock_name}` : ''}
@@ -170,7 +171,7 @@ export default function TicketDetail() {
             const note = historyNote(h.details);
             return (
               <li key={h.id} className="text-slate-600">
-                <span className="text-slate-400">{h.at}</span> · {h.username} ·{' '}
+                <span className="text-slate-400">{formatRoTime(h.at)}</span> · {h.username} ·{' '}
                 <strong>{TICKET_HISTORY_LABELS[h.action] || h.action}</strong>
                 {note ? ` — ${note.slice(0, 120)}` : ''}
               </li>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import BarcodeScanner from '../components/BarcodeScanner';
 import { api, ApiError } from '../lib/api';
+import { formatRoTime } from '../lib/time';
 import { useAuth } from '../lib/auth';
 import { useCompanies } from '../lib/companies';
 import {
@@ -66,11 +67,7 @@ function readMode(): Mode {
 }
 
 function fmtTime(ms: number) {
-  return new Date(ms).toLocaleTimeString('ro-RO', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
+  return formatRoTime(ms, 'time');
 }
 
 export default function StockReceive() {
