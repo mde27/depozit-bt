@@ -27,6 +27,13 @@ function Private({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** Pagini rezervate administratorului (ex. jurnalul de activitate). */
+function AdminOnly({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  if (user?.role !== 'admin') return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
     <Routes>
@@ -49,7 +56,14 @@ export default function App() {
         <Route path="stock" element={<Stock />} />
         <Route path="stock/receive" element={<StockReceive />} />
         <Route path="stock/:id/movements" element={<StockMovements />} />
-        <Route path="logs" element={<Logs />} />
+        <Route
+          path="logs"
+          element={
+            <AdminOnly>
+              <Logs />
+            </AdminOnly>
+          }
+        />
         <Route path="users" element={<Users />} />
         <Route path="exporturi" element={<Exports />} />
         {/* legacy redirects */}

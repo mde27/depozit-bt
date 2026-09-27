@@ -309,29 +309,27 @@ async function handleLogs(ctx: Ctx, method: string): Promise<Response> {
   const { request, env } = ctx;
   const auth = await requireUser(request, env);
   if (auth instanceof Response) return auth;
+  // Jurnalul de activitate este vizibil doar pentru admin.
+  if (auth.user.role !== 'admin') {
+    return error('Acces interzis: jurnalul de activitate este disponibil doar pentru administrator.', 403);
+  }
   if (method !== 'GET') return error('Method not allowed', 405);
   const q = new URL(request.url).searchParams.get('q')?.trim() || '';
-  // user1: doar propriile intrări (jurnalul conține detalii de stoc / tichete ale altor firme)
-  const own = isCompanyScoped(auth.user);
-  const ownSql = own ? ' AND username = ?' : '';
-  const ownParams = own ? [auth.user.username] : [];
   let logs;
   if (q) {
     const like = `%${q}%`;
     const { results } = await env.DB.prepare(
       `SELECT * FROM activity_logs
-       WHERE (username LIKE ? OR action LIKE ? OR details LIKE ? OR role LIKE ?)${ownSql}
+       WHERE (username LIKE ? OR action LIKE ? OR details LIKE ? OR role LIKE ?)
        ORDER BY id DESC LIMIT 500`
     )
-      .bind(like, like, like, like, ...ownParams)
+      .bind(like, like, like, like)
       .all();
     logs = results;
   } else {
     const { results } = await env.DB.prepare(
-      `SELECT * FROM activity_logs WHERE 1=1${ownSql} ORDER BY id DESC LIMIT 500`
-    )
-      .bind(...ownParams)
-      .all();
+      `SELECT * FROM activity_logs ORDER BY id DESC LIMIT 500`
+    ).all();
     logs = results;
   }
   return json({ logs });
