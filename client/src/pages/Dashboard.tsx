@@ -32,13 +32,30 @@ export default function Dashboard() {
     color: 'from-blue-700 to-sky-600',
     icon: '🎫',
   });
-  if (role === 'admin' || role === 'user2') {
+  if (role === 'admin' || role === 'user2' || role === 'user1') {
     cards.push({
       to: '/stock',
       title: 'Stoc live',
-      desc: 'Cantități, barcode, ledger mișcări',
+      desc:
+        role === 'user1'
+          ? user?.company
+            ? `Articolele firmei ${user.company} (doar vizualizare)`
+            : 'Doar vizualizare — contul nu are firmă setată'
+          : 'Cantități, barcode, ledger mișcări',
       color: 'from-slate-700 to-slate-900',
       icon: '📦',
+    });
+  }
+  if (role) {
+    cards.push({
+      to: '/exporturi',
+      title: 'Exporturi',
+      desc:
+        role === 'user3' || role === 'user4'
+          ? 'Cereri în CSV pentru Excel'
+          : 'Stoc, mișcări și cereri în CSV pentru Excel',
+      color: 'from-emerald-700 to-teal-600',
+      icon: '⬇️',
     });
   }
   if (role === 'admin') {

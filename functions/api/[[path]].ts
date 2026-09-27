@@ -21,6 +21,7 @@ import {
 } from '../_lib/tickets';
 import { lookupCatalog, normalizeScanCode, receiveStock } from '../_lib/catalog';
 import { canManageStock, deleteStockItem, updateStockItem } from '../_lib/stock';
+import { exportMovements, exportOptions, exportStock, exportTickets } from '../_lib/exports';
 import {
   NO_COMPANY_MESSAGE,
   isCompanyScoped,
@@ -336,6 +337,32 @@ async function handleLogs(ctx: Ctx, method: string): Promise<Response> {
   return json({ logs });
 }
 
+async function handleExports(ctx: Ctx, parts: string[], method: string): Promise<Response> {
+  const { request, env } = ctx;
+  const auth = await requireUser(request, env);
+  if (auth instanceof Response) return auth;
+  if (method !== 'GET') return error('Method not allowed', 405);
+  const q = new URL(request.url).searchParams;
+  try {
+    switch (parts[0]) {
+      case 'options':
+        return json(await exportOptions(env.DB, auth.user));
+      case 'stock':
+        return json(await exportStock(env.DB, auth.user, q));
+      case 'movements':
+        return json(await exportMovements(env.DB, auth.user, q));
+      case 'tickets':
+        return json(await exportTickets(env.DB, auth.user, q));
+      default:
+        return error('Not found', 404);
+    }
+  } catch (e: unknown) {
+    const err = e as Error & { status?: number };
+    if (!err.status) throw e;
+    return error(err.message, err.status);
+  }
+}
+
 async function handleCompanies(ctx: Ctx, method: string): Promise<Response> {
   const { request, env } = ctx;
   const auth = await requireUser(request, env);
@@ -510,6 +537,7 @@ export const onRequest: PagesFunction<Env> = async (ctx) => {
     if (parts[0] === 'logs') return handleLogs(ctx, method);
     if (parts[0] === 'users') return handleUsers(ctx, parts.slice(1), method);
     if (parts[0] === 'companies') return handleCompanies(ctx, method);
+    if (parts[0] === 'exports') return handleExports(ctx, parts.slice(1), method);
     return error('Not found', 404);
   } catch (e: unknown) {
     console.error(e);

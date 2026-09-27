@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import BarcodeScanner from '../components/BarcodeScanner';
 import { api, ApiError } from '../lib/api';
+import { useAuth } from '../lib/auth';
 import { useCompanies } from '../lib/companies';
 import type { StockItem } from '../lib/types';
 
@@ -22,6 +23,7 @@ type LookupState =
   | { status: 'miss'; code: string };
 
 export default function StockReceive() {
+  const { user } = useAuth();
   const { companies, reload: reloadCompanies } = useCompanies();
   const [manual, setManual] = useState('');
   const [lookup, setLookup] = useState<LookupState>({ status: 'idle' });
@@ -100,6 +102,10 @@ export default function StockReceive() {
     lookup.status === 'hit' || lookup.status === 'miss' || lookup.status === 'loading'
       ? lookup.code
       : '';
+
+  if (user && user.role !== 'admin' && user.role !== 'user2') {
+    return <p className="text-red-600">Doar admin / user2 pot face intrări în stoc.</p>;
+  }
 
   return (
     <div className="space-y-4 max-w-xl">

@@ -15,6 +15,10 @@ interface Movement {
 }
 
 const REASON_LABELS: Record<string, string> = {
+  INITIAL: 'Stoc inițial',
+  RECEIVE: 'Intrare stoc',
+  SEND_OUT: 'Trimitere (ieșire)',
+  RECEIVE_BACK: 'Retur primit',
   MANUAL_EDIT: 'Corecție manuală (editare)',
 };
 

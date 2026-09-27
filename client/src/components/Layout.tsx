@@ -39,15 +39,20 @@ export default function Layout() {
             <NavLink to="/tichete" className={linkClass}>
               Tichete
             </NavLink>
+            {(role === 'admin' || role === 'user2' || role === 'user1') && (
+              <NavLink to="/stock" end className={linkClass}>
+                Stoc
+              </NavLink>
+            )}
             {(role === 'admin' || role === 'user2') && (
-              <>
-                <NavLink to="/stock" className={linkClass}>
-                  Stoc
-                </NavLink>
-                <NavLink to="/stock/receive" className={linkClass}>
-                  Intrare stoc
-                </NavLink>
-              </>
+              <NavLink to="/stock/receive" className={linkClass}>
+                Intrare stoc
+              </NavLink>
+            )}
+            {role && (
+              <NavLink to="/exporturi" className={linkClass}>
+                Exporturi
+              </NavLink>
             )}
             {role === 'admin' && (
               <>

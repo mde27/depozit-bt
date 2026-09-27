@@ -12,6 +12,7 @@ import StockReceive from './pages/StockReceive';
 import StockMovements from './pages/StockMovements';
 import Logs from './pages/Logs';
 import Users from './pages/Users';
+import Exports from './pages/Exports';
 
 function Private({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -50,6 +51,7 @@ export default function App() {
         <Route path="stock/:id/movements" element={<StockMovements />} />
         <Route path="logs" element={<Logs />} />
         <Route path="users" element={<Users />} />
+        <Route path="exporturi" element={<Exports />} />
         {/* legacy redirects */}
         <Route path="client" element={<Navigate to="/cerere" replace />} />
         <Route path="warehouse" element={<Navigate to="/tichete" replace />} />
