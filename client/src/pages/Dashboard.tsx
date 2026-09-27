@@ -12,7 +12,7 @@ export default function Dashboard() {
       to: '/cerere',
       title: 'Cerere nouă',
       desc: 'Completează formularul de ridicare / livrare',
-      color: 'from-slate-900 via-slate-800 to-blue-700',
+      color: 'from-slate-900 via-slate-800 to-brand-700',
       icon: '📝',
     });
   }
@@ -29,7 +29,7 @@ export default function Dashboard() {
             : role === 'user1'
               ? 'Tichetele tale · corectează NEEDS_FIX'
               : 'Toate tichetele & statusuri',
-    color: 'from-blue-700 to-sky-600',
+    color: 'from-brand-800 to-teal-700',
     icon: '🎫',
   });
   if (role === 'admin' || role === 'user2' || role === 'user1') {
@@ -54,7 +54,7 @@ export default function Dashboard() {
         role === 'user3' || role === 'user4'
           ? 'Cereri în CSV pentru Excel'
           : 'Stoc, mișcări și cereri în CSV pentru Excel',
-      color: 'from-emerald-700 to-teal-600',
+      color: 'from-brand-700 to-brand-900',
       icon: '⬇️',
     });
   }
@@ -63,7 +63,7 @@ export default function Dashboard() {
       to: '/logs',
       title: 'Jurnal',
       desc: 'Activity log',
-      color: 'from-slate-800 to-blue-900',
+      color: 'from-slate-800 to-brand-900',
       icon: '📋',
     });
     cards.push({
@@ -78,7 +78,7 @@ export default function Dashboard() {
   return (
     <div>
       <div className="mb-6">
-        <p className="text-xs font-semibold uppercase tracking-wider text-sky-600 mb-1">
+        <p className="text-xs font-semibold uppercase tracking-wider text-brand-700 mb-1">
           Bun venit
         </p>
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">

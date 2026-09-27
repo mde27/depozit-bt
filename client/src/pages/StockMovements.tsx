@@ -39,7 +39,7 @@ export default function StockMovements() {
 
   return (
     <div>
-      <Link to="/stock" className="text-sm text-blue-600 hover:underline">
+      <Link to="/stock" className="text-sm text-brand-700 hover:underline">
         ← Înapoi la stoc
       </Link>
       <h1 className="text-2xl font-bold mt-2 mb-1">Ledger mișcări</h1>
@@ -71,7 +71,7 @@ export default function StockMovements() {
                 <td className="px-3 py-2 font-medium">{REASON_LABELS[m.reason] || m.reason}</td>
                 <td
                   className={`px-3 py-2 text-right font-semibold tabular-nums ${
-                    m.delta < 0 ? 'text-red-600' : 'text-emerald-600'
+                    m.delta < 0 ? 'text-red-600' : 'text-success-700'
                   }`}
                 >
                   {m.delta > 0 ? `+${m.delta}` : m.delta}

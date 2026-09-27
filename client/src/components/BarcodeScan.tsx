@@ -162,7 +162,7 @@ export default function BarcodeScan({
           className={`text-sm rounded-lg px-3 py-2 border ${
             toast.warn
               ? 'bg-amber-50 border-amber-200 text-amber-900'
-              : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+              : 'bg-success-50 border-success-300 text-success-900'
           }`}
           role="status"
         >
@@ -195,7 +195,7 @@ export default function BarcodeScan({
         <button
           type="submit"
           disabled={busy}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
+          className="bg-brand-700 hover:bg-brand-800 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
         >
           Adaugă
         </button>
@@ -215,7 +215,7 @@ export default function BarcodeScan({
           <li
             key={`${l.barcode}-${i}`}
             className={`px-3 py-2 flex justify-between gap-2 text-sm transition ${
-              highlight === l.barcode ? 'bg-emerald-50 ring-1 ring-emerald-200' : ''
+              highlight === l.barcode ? 'bg-success-50 ring-1 ring-success-300' : ''
             }`}
           >
             <div className="min-w-0">
@@ -258,7 +258,7 @@ export default function BarcodeScan({
               return (
                 <li
                   key={e.barcode || e.name}
-                  className={`flex justify-between ${ok ? 'text-emerald-700' : 'text-amber-700'}`}
+                  className={`flex justify-between ${ok ? 'text-success-700' : 'text-amber-700'}`}
                 >
                   <span>
                     {e.name} <span className="font-mono text-xs">({e.barcode})</span>

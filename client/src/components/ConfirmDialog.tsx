@@ -70,7 +70,7 @@ export default function ConfirmDialog({
               disabled={busy}
               onClick={onConfirm}
               className={`w-full sm:w-auto px-4 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50 ${
-                danger ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'
+                danger ? 'bg-red-600 hover:bg-red-700' : 'bg-brand-700 hover:bg-brand-800'
               }`}
             >
               {busy ? 'Se procesează…' : confirmLabel}

@@ -1,12 +1,89 @@
 @import "tailwindcss";
 
+/*
+ * ── Brand colour ────────────────────────────────────────────────────────────
+ * The whole app is themed from ONE value: --bt-brand. Change that hex to
+ * re-brand (buttons, active nav tab, logo badge, links, focus rings, headers).
+ * Every shade below is derived from it with color-mix(), and Tailwind exposes
+ * them as `brand-50 … brand-950` utilities (bg-brand-700, text-brand-700, …).
+ * Keep the base dark enough for white button text: >= 4.5:1 on white (WCAG AA).
+ * #047857 (Tailwind emerald-700) = 5.48:1.
+ * Also update <meta name="theme-color"> in client/index.html (HTML can't read CSS vars).
+ *
+ * ── Success colour ──────────────────────────────────────────────────────────
+ * Deliberately NOT the brand: a brighter, yellower green (Tailwind green) so
+ * "scanned OK" banners/toasts stand out from brand-green buttons and chrome.
+ * Warnings stay amber, errors/delete/Stop stay red, text/borders stay slate.
+ */
 :root {
-  --bt-navy: #0f2744;
-  --bt-blue: #1d4ed8;
-  --bt-accent: #0ea5e9;
+  --bt-brand: #047857;
+
+  --bt-brand-50: color-mix(in oklab, var(--bt-brand) 7%, white);
+  --bt-brand-100: color-mix(in oklab, var(--bt-brand) 15%, white);
+  --bt-brand-200: color-mix(in oklab, var(--bt-brand) 30%, white);
+  --bt-brand-300: color-mix(in oklab, var(--bt-brand) 50%, white);
+  --bt-brand-400: color-mix(in oklab, var(--bt-brand) 68%, white);
+  --bt-brand-500: color-mix(in oklab, var(--bt-brand) 82%, white);
+  --bt-brand-600: color-mix(in oklab, var(--bt-brand) 92%, white);
+  --bt-brand-700: var(--bt-brand);
+  --bt-brand-800: color-mix(in oklab, var(--bt-brand) 80%, black);
+  --bt-brand-900: color-mix(in oklab, var(--bt-brand) 64%, black);
+  --bt-brand-950: color-mix(in oklab, var(--bt-brand) 42%, black);
+
+  --bt-success-50: #f0fdf4;
+  --bt-success-100: #dcfce7;
+  --bt-success-200: #bbf7d0;
+  --bt-success-300: #86efac;
+  --bt-success-400: #4ade80;
+  --bt-success-500: #22c55e;
+  --bt-success-600: #16a34a;
+  --bt-success-700: #15803d;
+  --bt-success-800: #166534;
+  --bt-success-900: #14532d;
+  --bt-success-950: #052e16;
+
   --bt-slate: #64748b;
   --bt-bg: #f1f5f9;
   --bt-card: #ffffff;
+
+  accent-color: var(--bt-brand);
+}
+
+@theme inline {
+  --color-brand-50: var(--bt-brand-50);
+  --color-brand-100: var(--bt-brand-100);
+  --color-brand-200: var(--bt-brand-200);
+  --color-brand-300: var(--bt-brand-300);
+  --color-brand-400: var(--bt-brand-400);
+  --color-brand-500: var(--bt-brand-500);
+  --color-brand-600: var(--bt-brand-600);
+  --color-brand-700: var(--bt-brand-700);
+  --color-brand-800: var(--bt-brand-800);
+  --color-brand-900: var(--bt-brand-900);
+  --color-brand-950: var(--bt-brand-950);
+
+  --color-success-50: var(--bt-success-50);
+  --color-success-100: var(--bt-success-100);
+  --color-success-200: var(--bt-success-200);
+  --color-success-300: var(--bt-success-300);
+  --color-success-400: var(--bt-success-400);
+  --color-success-500: var(--bt-success-500);
+  --color-success-600: var(--bt-success-600);
+  --color-success-700: var(--bt-success-700);
+  --color-success-800: var(--bt-success-800);
+  --color-success-900: var(--bt-success-900);
+  --color-success-950: var(--bt-success-950);
+}
+
+/* Brand focus ring for every keyboard-focusable control (utilities can still override). */
+@layer base {
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--bt-brand);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: var(--bt-brand-100);
+  }
 }
 
 body {
@@ -14,8 +91,8 @@ body {
   min-height: 100vh;
   color: #0f172a;
   background:
-    radial-gradient(1200px 500px at 10% -10%, rgba(14, 165, 233, 0.12), transparent 60%),
-    radial-gradient(900px 400px at 100% 0%, rgba(29, 78, 216, 0.1), transparent 55%),
+    radial-gradient(1200px 500px at 10% -10%, color-mix(in srgb, var(--bt-brand) 10%, transparent), transparent 60%),
+    radial-gradient(900px 400px at 100% 0%, color-mix(in srgb, var(--bt-brand-900) 8%, transparent), transparent 55%),
     var(--bt-bg);
   font-family:
     "Segoe UI",
@@ -38,8 +115,8 @@ body {
   border: 1px solid rgba(148, 163, 184, 0.35);
   border-radius: 1rem;
   box-shadow:
-    0 1px 2px rgba(15, 39, 68, 0.04),
-    0 8px 24px rgba(15, 39, 68, 0.06);
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 8px 24px rgba(15, 23, 42, 0.06);
 }
 
 .bt-input {
@@ -53,17 +130,17 @@ body {
 }
 .bt-input:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+  border-color: var(--bt-brand-600);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--bt-brand) 22%, transparent);
 }
 
 .bt-btn-primary {
-  background: linear-gradient(135deg, #1d4ed8, #2563eb);
+  background: linear-gradient(135deg, var(--bt-brand-800), var(--bt-brand-700));
   color: #fff;
   font-weight: 600;
   border-radius: 0.75rem;
   padding: 0.625rem 1.25rem;
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--bt-brand) 35%, transparent);
   transition: transform 0.15s, filter 0.15s;
 }
 .bt-btn-primary:hover:not(:disabled) {

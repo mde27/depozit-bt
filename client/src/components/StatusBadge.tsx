@@ -2,7 +2,7 @@ const colors: Record<string, string> = {
   ORDERED: 'bg-amber-50 text-amber-800 ring-amber-200',
   NEEDS_FIX: 'bg-orange-50 text-orange-800 ring-orange-200',
   SENT: 'bg-sky-50 text-sky-800 ring-sky-200',
-  DELIVERED: 'bg-emerald-50 text-emerald-800 ring-emerald-200',
+  DELIVERED: 'bg-success-50 text-success-800 ring-success-200',
   RETURNING: 'bg-violet-50 text-violet-800 ring-violet-200',
   CLOSED: 'bg-slate-100 text-slate-600 ring-slate-200',
 };
@@ -11,7 +11,7 @@ const dots: Record<string, string> = {
   ORDERED: 'bg-amber-500',
   NEEDS_FIX: 'bg-orange-500',
   SENT: 'bg-sky-500',
-  DELIVERED: 'bg-emerald-500',
+  DELIVERED: 'bg-success-500',
   RETURNING: 'bg-violet-500',
   CLOSED: 'bg-slate-400',
 };

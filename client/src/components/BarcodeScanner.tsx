@@ -235,7 +235,7 @@ export default function BarcodeScanner({
             }}
             className={
               large
-                ? 'w-full min-h-[56px] flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white text-lg font-semibold px-5 py-3 rounded-xl shadow-sm touch-manipulation select-none'
+                ? 'w-full min-h-[56px] flex items-center justify-center gap-3 bg-brand-700 hover:bg-brand-800 active:bg-brand-900 disabled:opacity-50 text-white text-lg font-semibold px-5 py-3 rounded-xl shadow-sm touch-manipulation select-none'
                 : 'bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg'
             }
           >
@@ -272,7 +272,7 @@ export default function BarcodeScanner({
           </button>
         )}
         {flash && (
-          <span className="text-xs font-mono bg-emerald-100 text-emerald-800 px-2 py-1 rounded-full animate-pulse">
+          <span className="text-xs font-mono bg-success-100 text-success-800 px-2 py-1 rounded-full animate-pulse">
             Scanat: {flash}
           </span>
         )}

@@ -28,28 +28,28 @@ export default function TicketDetail() {
     actions.push({
       label: 'Trimitere (scan barcode)',
       to: `/tichete/${ticket.id}/scan/send`,
-      className: 'bg-sky-600 hover:bg-sky-700',
+      className: 'bg-sky-700 hover:bg-sky-800',
     });
   }
   if ((role === 'user3' || role === 'admin') && ticket.status === 'SENT') {
     actions.push({
       label: 'Livrare (scan)',
       to: `/tichete/${ticket.id}/scan/deliver`,
-      className: 'bg-emerald-600 hover:bg-emerald-700',
+      className: 'bg-success-700 hover:bg-success-800',
     });
   }
   if ((role === 'user4' || role === 'admin') && ticket.status === 'DELIVERED') {
     actions.push({
       label: 'Retur outbound (scan)',
       to: `/tichete/${ticket.id}/scan/return_out`,
-      className: 'bg-violet-600 hover:bg-violet-700',
+      className: 'bg-violet-700 hover:bg-violet-800',
     });
   }
   if ((role === 'user2' || role === 'admin') && ticket.status === 'RETURNING') {
     actions.push({
       label: 'Recepție retur (scan → +stoc)',
       to: `/tichete/${ticket.id}/scan/receive_back`,
-      className: 'bg-indigo-600 hover:bg-indigo-700',
+      className: 'bg-brand-700 hover:bg-brand-800',
     });
   }
   if (
@@ -59,13 +59,13 @@ export default function TicketDetail() {
     actions.push({
       label: 'Corectează cererea',
       to: `/cerere/${ticket.id}`,
-      className: 'bg-orange-600 hover:bg-orange-700',
+      className: 'bg-orange-700 hover:bg-orange-800',
     });
   }
 
   return (
     <div className="space-y-4">
-      <Link to="/tichete" className="text-sm text-blue-600 hover:underline">
+      <Link to="/tichete" className="text-sm text-brand-700 hover:underline">
         ← Tichete
       </Link>
       <div className="flex flex-wrap items-center gap-3">

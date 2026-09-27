@@ -31,13 +31,13 @@ export default function Login() {
         className="pointer-events-none absolute inset-0 opacity-40"
         style={{
           backgroundImage:
-            'linear-gradient(rgba(15,39,68,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(15,39,68,0.04) 1px, transparent 1px)',
+            'linear-gradient(rgba(15,23,42,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,0.04) 1px, transparent 1px)',
           backgroundSize: '32px 32px',
         }}
       />
       <div className="relative w-full max-w-md bt-card p-8 sm:p-10">
         <div className="text-center mb-8">
-          <div className="mx-auto h-16 w-16 rounded-2xl bg-gradient-to-br from-slate-900 to-blue-700 text-white flex items-center justify-center text-2xl font-bold mb-4 shadow-lg shadow-blue-900/25">
+          <div className="mx-auto h-16 w-16 rounded-2xl bg-gradient-to-br from-brand-900 to-brand-700 text-white flex items-center justify-center text-2xl font-bold mb-4 shadow-lg shadow-brand-900/25">
             BT
           </div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Depozit BT</h1>

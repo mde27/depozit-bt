@@ -407,7 +407,7 @@ export default function StockReceive() {
     <div className="space-y-4 max-w-xl pb-24">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-bold">Intrare stoc</h1>
-        <Link to="/stock" className="text-sm text-blue-600 hover:underline">
+        <Link to="/stock" className="text-sm text-brand-700 hover:underline">
           ← Înapoi la stoc
         </Link>
       </div>
@@ -433,7 +433,7 @@ export default function StockReceive() {
             onClick={() => setMode(m)}
             className={`min-h-[48px] rounded-lg px-2 py-1.5 text-sm font-semibold leading-tight transition touch-manipulation disabled:cursor-not-allowed ${
               mode === m
-                ? 'bg-white text-slate-900 shadow-sm'
+                ? 'bg-white text-brand-800 shadow-sm ring-1 ring-brand-200'
                 : 'text-slate-600 hover:text-slate-900 disabled:opacity-50'
             }`}
           >
@@ -504,7 +504,7 @@ export default function StockReceive() {
         </div>
 
         {continuous && cameraOn && (
-          <div className="flex items-center justify-between rounded-lg bg-slate-900 text-white px-3 py-2">
+          <div className="flex items-center justify-between rounded-lg bg-brand-900 text-white px-3 py-2">
             <span className="text-sm">Scanate în sesiune</span>
             <span className="text-2xl font-bold tabular-nums" aria-live="polite">
               {okCount}
@@ -654,18 +654,18 @@ export default function StockReceive() {
       )}
 
       {!continuous && lookup.status === 'hit' && (
-        <div className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 space-y-1">
-          <div className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
+        <div className="rounded-xl border border-success-300 bg-success-50 px-4 py-3 space-y-1">
+          <div className="text-xs font-semibold uppercase tracking-wide text-success-800">
             Găsit în catalog SMISS
           </div>
-          <div className="font-semibold text-emerald-950">{lookup.item.denumire1}</div>
+          <div className="font-semibold text-success-950">{lookup.item.denumire1}</div>
           {lookup.item.denumire2 && (
-            <div className="text-sm text-emerald-900">{lookup.item.denumire2}</div>
+            <div className="text-sm text-success-900">{lookup.item.denumire2}</div>
           )}
           {lookup.item.description && (
-            <div className="text-xs text-emerald-800/80">{lookup.item.description}</div>
+            <div className="text-xs text-success-800/80">{lookup.item.description}</div>
           )}
-          <div className="text-xs font-mono text-emerald-900 pt-1">
+          <div className="text-xs font-mono text-success-900 pt-1">
             MF: {lookup.item.mijloc_fix}
             {lookup.item.mijloc_fix_orig ? ` · ORIG: ${lookup.item.mijloc_fix_orig}` : ''}
             {` · scan: ${lookup.code}`}
@@ -707,7 +707,7 @@ export default function StockReceive() {
             type="button"
             disabled={busy || !sourceFrom.trim() || !company.trim()}
             onClick={() => void confirm()}
-            className="w-full min-h-[48px] bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold px-4 py-2.5 rounded-lg text-base sm:text-sm"
+            className="w-full min-h-[48px] bg-brand-700 hover:bg-brand-800 disabled:opacity-50 text-white font-semibold px-4 py-2.5 rounded-lg text-base sm:text-sm"
           >
             {busy ? 'Se salvează…' : `Confirmă intrare (${code})`}
           </button>
@@ -720,8 +720,14 @@ export default function StockReceive() {
         </div>
       )}
       {success && (
-        <div className="text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
-          {success}
+        <div
+          role="status"
+          className="flex items-start gap-2 text-sm text-success-900 bg-success-50 border border-success-300 border-l-4 border-l-success-500 rounded-lg px-3 py-2"
+        >
+          <span aria-hidden="true" className="font-bold text-success-700">
+            ✓
+          </span>
+          <span>{success}</span>
         </div>
       )}
 
@@ -732,7 +738,7 @@ export default function StockReceive() {
           aria-live="assertive"
           className={`fixed inset-x-3 bottom-4 z-50 mx-auto max-w-xl rounded-2xl border-2 px-4 py-3 shadow-xl ${
             confirmation.kind === 'ok'
-              ? 'bg-emerald-600 border-emerald-700 text-white'
+              ? 'bg-success-400 border-success-600 text-success-950'
               : confirmation.kind === 'warn'
                 ? 'bg-amber-300 border-amber-500 text-amber-950'
                 : 'bg-red-600 border-red-700 text-white'

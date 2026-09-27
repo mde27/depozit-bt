@@ -4,8 +4,8 @@ import { useAuth, ROLE_LABELS } from '../lib/auth';
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   `px-3 py-2 rounded-lg text-sm font-medium transition ${
     isActive
-      ? 'bg-slate-900 text-white shadow-sm'
-      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+      ? 'bg-brand-700 text-white shadow-sm'
+      : 'text-slate-600 hover:bg-brand-50 hover:text-brand-800'
   }`;
 
 export default function Layout() {
@@ -17,7 +17,7 @@ export default function Layout() {
       <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/90 backdrop-blur-md shadow-sm">
         <div className="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center gap-3 justify-between">
           <Link to="/dashboard" className="flex items-center gap-2.5 group">
-            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-slate-900 to-blue-700 text-white text-sm font-bold shadow-md shadow-blue-900/20 group-hover:scale-105 transition">
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-900 to-brand-700 text-white text-sm font-bold shadow-md shadow-brand-900/20 group-hover:scale-105 transition">
               BT
             </span>
             <div className="leading-tight">

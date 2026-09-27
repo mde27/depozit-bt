@@ -68,7 +68,7 @@ export default function Stock() {
           {canReceive && (
             <Link
               to="/stock/receive"
-              className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-3 py-2 rounded-lg"
+              className="bg-brand-700 hover:bg-brand-800 text-white text-sm font-semibold px-3 py-2 rounded-lg"
             >
               + Intrare stoc
             </Link>
@@ -102,12 +102,12 @@ export default function Stock() {
         ))}
       {error && <p className="text-red-600 mb-2">{error}</p>}
       {notice && (
-        <div className="mb-3 text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 flex items-start justify-between gap-2">
+        <div className="mb-3 text-sm text-success-800 bg-success-50 border border-success-200 rounded-lg px-3 py-2 flex items-start justify-between gap-2">
           <span>{notice}</span>
           <button
             type="button"
             onClick={() => setNotice('')}
-            className="text-emerald-700 leading-none px-1"
+            className="text-success-700 leading-none px-1"
             aria-label="Închide"
           >
             ×
@@ -174,7 +174,7 @@ export default function Stock() {
                   <td className="px-3 py-2">
                     <Link
                       to={`/stock/${it.id}/movements`}
-                      className="text-blue-600 hover:underline text-xs font-medium"
+                      className="text-brand-700 hover:underline text-xs font-medium"
                     >
                       Mișcări
                     </Link>
@@ -188,7 +188,7 @@ export default function Stock() {
                             setNotice('');
                             setEditing(it);
                           }}
-                          className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100"
+                          className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-brand-800 bg-brand-50 hover:bg-brand-100"
                         >
                           Editează
                         </button>

@@ -91,7 +91,7 @@ export default function TicketScanPage() {
 
   return (
     <div className="space-y-4 max-w-xl">
-      <Link to={`/tichete/${id}`} className="text-sm text-blue-600 hover:underline">
+      <Link to={`/tichete/${id}`} className="text-sm text-brand-700 hover:underline">
         ← Înapoi la tichet
       </Link>
       <div className="flex items-center gap-2 flex-wrap">
@@ -135,7 +135,7 @@ export default function TicketScanPage() {
         <button
           disabled={busy || lines.length === 0}
           onClick={() => submit(meta.action)}
-          className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg text-sm"
+          className="bg-brand-700 hover:bg-brand-800 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg text-sm"
         >
           {stage === 'send'
             ? 'Confirmă trimitere (match)'

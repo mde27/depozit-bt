@@ -211,7 +211,7 @@ export default function Cerere() {
             </div>
             <button
               type="button"
-              className="text-sm text-blue-600 font-medium"
+              className="text-sm text-brand-700 font-medium"
               onClick={() => setLines([...lines, { stock_item_id: 0, ordered_qty: 1 }])}
             >
               + Adaugă linie
@@ -268,7 +268,7 @@ export default function Cerere() {
         <button
           type="submit"
           disabled={busy}
-          className="bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold rounded-lg px-6 py-2.5"
+          className="bg-brand-700 hover:bg-brand-800 disabled:opacity-60 text-white font-semibold rounded-lg px-6 py-2.5"
         >
           {busy
             ? 'Se salvează…'

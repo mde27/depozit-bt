@@ -135,7 +135,7 @@ export default function Users() {
         ))}
       </datalist>
       {error && <p className="text-red-600 text-sm">{error}</p>}
-      {msg && <p className="text-emerald-600 text-sm">{msg}</p>}
+      {msg && <p className="text-success-700 text-sm">{msg}</p>}
       <div className="overflow-x-auto bg-white rounded-xl border border-slate-200">
         <table className="min-w-full text-sm">
           <thead className="bg-slate-50 text-left">
@@ -211,7 +211,7 @@ export default function Users() {
                           type="button"
                           disabled={savingId === u.id}
                           onClick={() => void saveEdit(u)}
-                          className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-3 py-1 rounded-lg text-xs font-medium"
+                          className="bg-brand-700 hover:bg-brand-800 disabled:opacity-50 text-white px-3 py-1 rounded-lg text-xs font-medium"
                         >
                           {savingId === u.id ? 'Se salvează…' : 'Salvează'}
                         </button>
@@ -227,7 +227,7 @@ export default function Users() {
                       <button
                         type="button"
                         onClick={() => startEdit(u)}
-                        className="text-blue-600 hover:underline text-xs font-medium"
+                        className="text-brand-700 hover:underline text-xs font-medium"
                       >
                         Editează
                       </button>
@@ -287,7 +287,7 @@ export default function Users() {
             </p>
           )}
         </div>
-        <button className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
+        <button className="bg-brand-700 hover:bg-brand-800 text-white px-4 py-2 rounded-lg text-sm font-medium">
           Creează
         </button>
       </form>

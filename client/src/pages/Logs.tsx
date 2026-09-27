@@ -47,7 +47,7 @@ export default function Logs() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
-        <button className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium">Caută</button>
+        <button className="bg-brand-700 hover:bg-brand-800 text-white px-4 py-2 rounded-lg font-medium">Caută</button>
       </form>
       {error && <p className="text-red-600 mb-2">{error}</p>}
       <div className="overflow-x-auto bg-white rounded-xl border border-slate-200">

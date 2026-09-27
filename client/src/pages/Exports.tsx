@@ -218,7 +218,7 @@ export default function Exports() {
               onClick={() => setKind(k)}
               className={`text-left rounded-xl border px-4 py-3 transition ${
                 kind === k
-                  ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-600'
+                  ? 'border-brand-700 bg-brand-50 ring-1 ring-brand-700'
                   : 'border-slate-200 bg-white hover:bg-slate-50'
               }`}
             >
@@ -244,7 +244,7 @@ export default function Exports() {
                   onClick={() => applyPreset(p.key)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium ${
                     preset === p.key
-                      ? 'bg-slate-900 text-white'
+                      ? 'bg-brand-700 text-white'
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`}
                 >
@@ -351,7 +351,7 @@ export default function Exports() {
                       onClick={() => setVariant(v)}
                       className={`px-2 py-2 rounded-lg text-xs font-medium ${
                         variant === v
-                          ? 'bg-slate-900 text-white'
+                          ? 'bg-brand-700 text-white'
                           : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                       }`}
                     >
@@ -416,7 +416,7 @@ export default function Exports() {
             type="button"
             disabled={busy}
             onClick={() => void download()}
-            className="w-full sm:w-auto px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+            className="w-full sm:w-auto px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-brand-700 hover:bg-brand-800 disabled:opacity-50"
           >
             Descarcă CSV
           </button>

@@ -183,7 +183,7 @@ export default function StockEditModal({ item, companies, onClose, onSaved }: Pr
           <button
             type="submit"
             disabled={busy}
-            className="w-full sm:w-auto px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+            className="w-full sm:w-auto px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-brand-700 hover:bg-brand-800 disabled:opacity-50"
           >
             Salvează
           </button>
