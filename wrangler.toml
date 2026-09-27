@@ -10,7 +10,6 @@ database_name = "depozit-bt"
 database_id = "189e60d5-792e-4df3-b318-f4fbcad73b0b"
 migrations_dir = "migrations"
 
-# Set via: wrangler pages secret put JWT_SECRET
-# [vars] JWT_SECRET is only for local — never commit real secrets
-[vars]
-JWT_SECRET = "depozit-bt-dev-secret-change-in-prod"
+# JWT_SECRET is a Pages secret (wrangler pages secret put JWT_SECRET).
+# Do NOT put it under [vars] here: that clashes with the secret and blocks deploys.
+# For local dev, put JWT_SECRET=... in .dev.vars (gitignored).
