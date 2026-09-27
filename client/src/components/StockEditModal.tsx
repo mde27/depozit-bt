@@ -22,9 +22,9 @@ const FIELDS: { key: FieldKey; label: string; required?: boolean; mono?: boolean
     { key: 'name', label: 'Denumire', required: true, full: true },
     { key: 'name2', label: 'Denumire 2', full: true },
     { key: 'sku', label: 'SKU', required: true, mono: true },
-    { key: 'barcode', label: 'Barcode', mono: true },
-    { key: 'mijloc_fix', label: 'Mijloc fix (MF)', mono: true },
-    { key: 'mijloc_fix_orig', label: 'MF ORIG', mono: true },
+    { key: 'barcode', label: 'Cod de bare', mono: true },
+    { key: 'mijloc_fix', label: 'Mijloc fix', mono: true },
+    { key: 'mijloc_fix_orig', label: 'Mijloc fix original', mono: true },
     { key: 'company', label: 'Firmă' },
     { key: 'place', label: 'Locație' },
     { key: 'source_from', label: 'Sursă (de unde a venit)' },
@@ -154,7 +154,7 @@ export default function StockEditModal({ item, companies, onClose, onSaved }: Pr
               )}
               {f.key === 'quantity' && Number.isFinite(qtyDelta) && qtyDelta !== 0 && (
                 <p className="text-[11px] text-slate-500 mt-1">
-                  Corecție {qtyDelta > 0 ? `+${qtyDelta}` : qtyDelta} — se înregistrează în ledger.
+                  Corecție {qtyDelta > 0 ? `+${qtyDelta}` : qtyDelta} — se înregistrează în istoricul mișcărilor.
                 </p>
               )}
             </div>

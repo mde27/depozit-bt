@@ -12,28 +12,28 @@ const STAGE_META: Record<
   { title: string; action: string; hint: string; compareOrder: boolean; allowMismatchComment?: boolean }
 > = {
   send: {
-    title: 'Trimitere — scan barcode',
+    title: 'Trimitere — scanare',
     action: 'SEND',
-    hint: 'Scanează exact articolele și cantitățile din comandă. Match → SENT (−stoc). Mismatch → trimite cu comentariu.',
+    hint: 'Scanează exact articolele și cantitățile din comandă. Dacă totul se potrivește, confirmă trimiterea. Dacă ceva lipsește sau diferă, scrie un comentariu și trimite cererea la corectat.',
     compareOrder: true,
     allowMismatchComment: true,
   },
   deliver: {
     title: 'Livrare — ce s-a livrat',
     action: 'DELIVER',
-    hint: 'Înregistrează ce a primit clientul. Nu modifică stocul.',
+    hint: 'Înregistrează ce a primit clientul. Stocul nu se modifică.',
     compareOrder: false,
   },
   return_out: {
-    title: 'Retur outbound — ce se trimite înapoi',
+    title: 'Predare retur — ce se trimite înapoi',
     action: 'RETURN_OUT',
-    hint: 'Nu trebuie să coincidă cu comanda. Nu modifică stocul.',
+    hint: 'Poate fi diferit de comandă. Stocul nu se modifică.',
     compareOrder: false,
   },
   receive_back: {
     title: 'Recepție retur — ce a ajuns în magazie',
     action: 'RECEIVE_BACK',
-    hint: 'Scanează ce s-a primit. Stocul crește (RECEIVE_BACK). Tichet → CLOSED.',
+    hint: 'Scanează ce a ajuns în magazie. Articolele intră înapoi în stoc, iar tichetul se închide.',
     compareOrder: false,
   },
 };
@@ -57,7 +57,7 @@ export default function TicketScanPage() {
   }, [id, meta]);
 
   if (!meta) {
-    return <p className="text-red-600">Stage invalid</p>;
+    return <p className="text-red-600">Pagina nu există.</p>;
   }
 
   async function submit(action: string) {
@@ -119,7 +119,7 @@ export default function TicketScanPage() {
           onChange={(e) => setComment(e.target.value)}
           placeholder={
             meta.allowMismatchComment
-              ? 'Obligatoriu pentru „Trimitere cu comentariu”'
+              ? 'Obligatoriu pentru „Trimite la corectat”'
               : 'Opțional'
           }
         />
@@ -138,12 +138,12 @@ export default function TicketScanPage() {
           className="bg-brand-700 hover:bg-brand-800 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg text-sm"
         >
           {stage === 'send'
-            ? 'Confirmă trimitere (match)'
+            ? 'Confirmă trimiterea'
             : stage === 'deliver'
-              ? 'Confirmă livrare'
+              ? 'Confirmă livrarea'
               : stage === 'return_out'
-                ? 'Confirmă retur outbound'
-                : 'Confirmă recepție (+stoc)'}
+                ? 'Confirmă predarea returului'
+                : 'Confirmă recepția'}
         </button>
         {meta.allowMismatchComment && (
           <button
@@ -151,7 +151,7 @@ export default function TicketScanPage() {
             onClick={() => submit('SEND_WITH_COMMENT')}
             className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg text-sm"
           >
-            Trimitere cu comentariu (NEEDS_FIX)
+            Trimite la corectat
           </button>
         )}
       </div>

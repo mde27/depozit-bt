@@ -42,11 +42,11 @@ export default function StockMovements() {
       <Link to="/stock" className="text-sm text-brand-700 hover:underline">
         ← Înapoi la stoc
       </Link>
-      <h1 className="text-2xl font-bold mt-2 mb-1">Ledger mișcări</h1>
+      <h1 className="text-2xl font-bold mt-2 mb-1">Mișcări stoc</h1>
       {item && (
         <p className="text-slate-600 mb-4">
           <span className="font-medium">{String(item.name)}</span> · SKU {String(item.sku)} ·
-          barcode {String(item.barcode || '—')} · stoc curent{' '}
+          cod de bare {String(item.barcode || '—')} · stoc curent{' '}
           <strong>{String(item.quantity)}</strong>
         </p>
       )}
@@ -57,11 +57,11 @@ export default function StockMovements() {
             <tr>
               <th className="px-3 py-2">Data</th>
               <th className="px-3 py-2">Motiv</th>
-              <th className="px-3 py-2 text-right">Δ</th>
+              <th className="px-3 py-2 text-right">Modificare</th>
               <th className="px-3 py-2 text-right">După</th>
               <th className="px-3 py-2">Tichet</th>
-              <th className="px-3 py-2">User</th>
-              <th className="px-3 py-2">Barcode</th>
+              <th className="px-3 py-2">Utilizator</th>
+              <th className="px-3 py-2">Cod scanat</th>
             </tr>
           </thead>
           <tbody>

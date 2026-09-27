@@ -23,13 +23,13 @@ export default function Layout() {
             <div className="leading-tight">
               <div className="font-bold text-slate-900 tracking-tight">Depozit BT</div>
               <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">
-                Logistics
+                Gestiune depozit
               </div>
             </div>
           </Link>
           <nav className="flex flex-wrap gap-1">
             <NavLink to="/dashboard" className={linkClass}>
-              Dashboard
+              Acasă
             </NavLink>
             {(role === 'user1' || role === 'admin') && (
               <NavLink to="/cerere" className={linkClass}>
@@ -60,7 +60,7 @@ export default function Layout() {
                   Jurnal
                 </NavLink>
                 <NavLink to="/users" className={linkClass}>
-                  Users
+                  Utilizatori
                 </NavLink>
               </>
             )}
@@ -85,7 +85,7 @@ export default function Layout() {
         <Outlet />
       </main>
       <footer className="text-center text-xs text-slate-400 py-4 border-t border-slate-200/60">
-        Depozit BT · ticketing &amp; stoc
+        Depozit BT
       </footer>
     </div>
   );

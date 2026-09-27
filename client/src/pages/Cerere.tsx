@@ -66,7 +66,7 @@ export default function Cerere() {
   }, [id]);
 
   if (user && user.role !== 'user1' && user.role !== 'admin') {
-    return <p className="text-red-600">Doar user1 / admin pot crea cereri.</p>;
+    return <p className="text-red-600">Nu ai acces la crearea cererilor.</p>;
   }
 
   function setLine(i: number, patch: Partial<{ stock_item_id: number; ordered_qty: number }>) {
@@ -126,7 +126,7 @@ export default function Cerere() {
         {editing ? 'Corectează cererea' : 'Cerere nouă'}
       </h1>
       <p className="text-slate-500 text-sm mb-4">
-        Formular ridicare / livrare (ca Depozit BT)
+        Formular ridicare / livrare
       </p>
 
       {fixComment && (
@@ -273,8 +273,8 @@ export default function Cerere() {
           {busy
             ? 'Se salvează…'
             : editing
-              ? 'Retrimite (ORDERED)'
-              : 'Creează tichet (ORDERED)'}
+              ? 'Retrimite cererea'
+              : 'Creează tichet'}
         </button>
       </form>
     </div>

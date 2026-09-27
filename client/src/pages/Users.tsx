@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { api, ApiError } from '../lib/api';
-import { useAuth } from '../lib/auth';
+import { useAuth, ROLE_LABELS, type Role } from '../lib/auth';
 import { useCompanies } from '../lib/companies';
 
 interface U {
@@ -18,6 +18,8 @@ interface Edit {
 }
 
 const ROLES = ['admin', 'user1', 'user2', 'user3', 'user4'];
+
+const roleLabel = (r: string) => ROLE_LABELS[r as Role] ?? r;
 
 export default function Users() {
   const { user, refresh } = useAuth();
@@ -44,7 +46,7 @@ export default function Users() {
   }, [user?.role]);
 
   if (user?.role !== 'admin') {
-    return <p className="text-red-600">Doar admin</p>;
+    return <p className="text-red-600">Nu ai acces la această pagină.</p>;
   }
 
   async function onSubmit(e: FormEvent) {
@@ -52,7 +54,7 @@ export default function Users() {
     setError('');
     setMsg('');
     if (form.role === 'user1' && !form.company.trim()) {
-      setError('Firma este obligatorie pentru utilizatorii user1');
+      setError('Firma este obligatorie pentru clienți');
       return;
     }
     try {
@@ -97,7 +99,7 @@ export default function Users() {
     setError('');
     setMsg('');
     if (ed.role === 'user1' && !ed.company.trim()) {
-      setError(`Firma este obligatorie pentru utilizatorii user1 (${u.username})`);
+      setError(`Firma este obligatorie pentru clienți (${u.username})`);
       return;
     }
     setSavingId(u.id);
@@ -141,9 +143,9 @@ export default function Users() {
           <thead className="bg-slate-50 text-left">
             <tr>
               <th className="px-3 py-2">ID</th>
-              <th className="px-3 py-2">User</th>
+              <th className="px-3 py-2">Utilizator</th>
               <th className="px-3 py-2">Rol</th>
-              <th className="px-3 py-2">Companie</th>
+              <th className="px-3 py-2">Firmă</th>
               <th className="px-3 py-2">Parolă nouă</th>
               <th className="px-3 py-2"></th>
             </tr>
@@ -165,12 +167,12 @@ export default function Users() {
                       >
                         {ROLES.map((r) => (
                           <option key={r} value={r}>
-                            {r}
+                            {roleLabel(r)}
                           </option>
                         ))}
                       </select>
                     ) : (
-                      u.role
+                      roleLabel(u.role)
                     )}
                   </td>
                   <td className="px-3 py-2">
@@ -244,10 +246,10 @@ export default function Users() {
         onSubmit={onSubmit}
         className="bg-white border border-slate-200 rounded-xl p-4 space-y-3 max-w-md"
       >
-        <h2 className="font-semibold">Adaugă user</h2>
+        <h2 className="font-semibold">Adaugă utilizator</h2>
         <input
           className="w-full border rounded-lg px-3 py-2 text-sm"
-          placeholder="username"
+          placeholder="Nume utilizator"
           value={form.username}
           onChange={(e) => setForm({ ...form, username: e.target.value })}
           required
@@ -255,7 +257,7 @@ export default function Users() {
         <input
           type="password"
           className="w-full border rounded-lg px-3 py-2 text-sm"
-          placeholder="password"
+          placeholder="Parolă"
           value={form.password}
           onChange={(e) => setForm({ ...form, password: e.target.value })}
           required
@@ -267,14 +269,14 @@ export default function Users() {
         >
           {ROLES.map((r) => (
             <option key={r} value={r}>
-              {r}
+              {roleLabel(r)}
             </option>
           ))}
         </select>
         <div>
           <input
             className="w-full border rounded-lg px-3 py-2 text-sm"
-            placeholder={form.role === 'user1' ? 'firmă (obligatoriu pentru user1)' : 'firmă (opțional)'}
+            placeholder={form.role === 'user1' ? 'firmă (obligatoriu pentru clienți)' : 'firmă (opțional)'}
             list="users-companies"
             autoComplete="off"
             value={form.company}
@@ -283,7 +285,7 @@ export default function Users() {
           />
           {form.role === 'user1' && (
             <p className="text-[11px] text-slate-500 mt-1">
-              user1 vede doar articolele din stoc ale acestei firme.
+              Clientul vede doar articolele din stoc ale acestei firme.
             </p>
           )}
         </div>

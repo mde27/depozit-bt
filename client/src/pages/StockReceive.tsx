@@ -159,7 +159,7 @@ export default function StockReceive() {
       }
     } catch (e) {
       setLookup({ status: 'idle' });
-      setError(e instanceof Error ? e.message : 'Eroare lookup');
+      setError(e instanceof Error ? e.message : 'Eroare la căutare');
       scanFeedback('error');
     }
   }, []);
@@ -192,7 +192,7 @@ export default function StockReceive() {
       setSuccess(
         data.catalogHit
           ? `Adăugat/actualizat: ${name} (cant. ${data.item.quantity})`
-          : `Adăugat ca NECUNOSCUT: ${name} (cant. ${data.item.quantity})`
+          : `Adăugat ca articol necunoscut: ${name} (cant. ${data.item.quantity})`
       );
       setLookup({ status: 'idle' });
       setManual('');
@@ -255,10 +255,10 @@ export default function StockReceive() {
         showConfirmation({
           kind: hit ? 'ok' : 'warn',
           code,
-          text: hit ? data.item.name : 'NECATALOGAT — adăugat ca NECUNOSCUT',
+          text: hit ? data.item.name : 'Articol necunoscut — adăugat în stoc',
         });
       } catch (e) {
-        const msg = e instanceof ApiError ? e.message : 'Eroare la salvare (rețea?)';
+        const msg = e instanceof ApiError ? e.message : 'Eroare la salvare. Verifică conexiunea.';
         setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status: 'error', error: msg } : r)));
         scanFeedback('error');
         showConfirmation({ kind: 'error', code, text: msg });
@@ -343,7 +343,7 @@ export default function StockReceive() {
       : '';
 
   if (user && user.role !== 'admin' && user.role !== 'user2') {
-    return <p className="text-red-600">Doar admin / user2 pot face intrări în stoc.</p>;
+    return <p className="text-red-600">Nu ai acces la intrările în stoc.</p>;
   }
 
   const continuous = mode === 'continuous';
@@ -385,7 +385,7 @@ export default function StockReceive() {
         ))}
       </datalist>
       <p className="text-[11px] text-slate-500 mt-1">
-        Alege o firmă existentă din listă — doar user1 din aceeași firmă vor vedea articolul.
+        Alege o firmă din listă. Articolul va fi vizibil doar clienților acestei firme.
       </p>
     </div>
   );
@@ -446,16 +446,15 @@ export default function StockReceive() {
       <p className="text-sm text-slate-600">
         {continuous ? (
           <>
-            Completează o dată câmpurile sesiunii, apoi scanează articol după articol. Fiecare
-            scanare adaugă <strong>1 buc.</strong> în stoc imediat; camera rămâne deschisă. Același
-            cod este ignorat ~2,5 s. Codurile necatalogate se salvează ca{' '}
-            <span className="font-mono">NECUNOSCUT</span> (galben).
+            Completează o dată datele de mai jos, apoi scanează articol după articol. Fiecare
+            scanare adaugă <strong>1 buc.</strong> în stoc imediat; camera rămâne deschisă. Pentru
+            încă o bucată cu același cod, ia camera de pe cod o clipă și scanează din nou.
+            Articolele care nu sunt în catalog se salvează ca necunoscute (galben).
           </>
         ) : (
           <>
-            Scanează codul MIJLOC_FIX (sau ORIG). Dacă e în catalogul SMISS, denumirea se completează
-            automat. Altfel se salvează ca <span className="font-mono">NECUNOSCUT</span> (evidențiat
-            galben).
+            Scanează codul de mijloc fix de pe etichetă. Dacă articolul este în catalog, denumirea
+            se completează automat. Altfel se salvează ca necunoscut (evidențiat cu galben).
           </>
         )}
       </p>
@@ -530,8 +529,7 @@ export default function StockReceive() {
               </span>
             ) : (
               <>
-                Camera necesită <strong>HTTPS</strong> (sau localhost) și permisiunea browserului.
-                Se folosește camera din spate.
+                Permite accesul la cameră când ți se cere. Se folosește camera din spate.
               </>
             )
           }
@@ -656,7 +654,7 @@ export default function StockReceive() {
       {!continuous && lookup.status === 'hit' && (
         <div className="rounded-xl border border-success-300 bg-success-50 px-4 py-3 space-y-1">
           <div className="text-xs font-semibold uppercase tracking-wide text-success-800">
-            Găsit în catalog SMISS
+            Găsit în catalog
           </div>
           <div className="font-semibold text-success-950">{lookup.item.denumire1}</div>
           {lookup.item.denumire2 && (
@@ -666,9 +664,9 @@ export default function StockReceive() {
             <div className="text-xs text-success-800/80">{lookup.item.description}</div>
           )}
           <div className="text-xs font-mono text-success-900 pt-1">
-            MF: {lookup.item.mijloc_fix}
-            {lookup.item.mijloc_fix_orig ? ` · ORIG: ${lookup.item.mijloc_fix_orig}` : ''}
-            {` · scan: ${lookup.code}`}
+            Mijloc fix: {lookup.item.mijloc_fix}
+            {lookup.item.mijloc_fix_orig ? ` · Mijloc fix original: ${lookup.item.mijloc_fix_orig}` : ''}
+            {` · Cod scanat: ${lookup.code}`}
           </div>
         </div>
       )}
@@ -678,10 +676,10 @@ export default function StockReceive() {
           <div className="text-xs font-semibold uppercase tracking-wide text-amber-800">
             Negăsit în catalog
           </div>
-          <div className="font-semibold text-amber-950">NECUNOSCUT {lookup.code}</div>
+          <div className="font-semibold text-amber-950">Articol necunoscut: {lookup.code}</div>
           <div className="text-xs text-amber-900">
-            Se va adăuga cu flag uncatalogued (afișat galben în stoc). Poți completa sursa și
-            confirma.
+            Se va adăuga ca articol necunoscut (evidențiat cu galben în stoc). Completează datele
+            și confirmă.
           </div>
         </div>
       )}

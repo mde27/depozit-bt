@@ -32,11 +32,11 @@ export default function Tickets() {
 
   const title =
     user?.role === 'user2'
-      ? 'Coadă magazie (ORDERED + RETURNING)'
+      ? 'Comenzi de trimis și retururi de recepționat'
       : user?.role === 'user3'
-        ? 'Coadă curier (SENT)'
+        ? 'Comenzi de livrat'
         : user?.role === 'user4'
-          ? 'Coadă retur outbound (DELIVERED)'
+          ? 'Retururi de predat'
           : user?.role === 'user1'
             ? 'Tichetele mele'
             : 'Tichete';

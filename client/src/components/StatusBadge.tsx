@@ -31,7 +31,7 @@ export default function StatusBadge({ status }: { status: string }) {
       className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ring-1 ${
         colors[status] || 'bg-slate-100 text-slate-700 ring-slate-200'
       }`}
-      title={status}
+      title={labels[status] || status}
     >
       <span
         className={`h-1.5 w-1.5 rounded-full ${dots[status] || 'bg-slate-400'}`}

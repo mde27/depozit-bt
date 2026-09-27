@@ -79,8 +79,8 @@ export function useAuth() {
 
 export const ROLE_LABELS: Record<Role, string> = {
   admin: 'Admin',
-  user1: 'Cereri (user1)',
-  user2: 'Magazie (user2)',
-  user3: 'Curier (user3)',
-  user4: 'Retur (user4)',
+  user1: 'Client',
+  user2: 'Magazie',
+  user3: 'Curier',
+  user4: 'Retur',
 };

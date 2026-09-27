@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { ROLE_LABELS, type Role } from '../lib/auth';
+import { ACTIVITY_LABELS } from '../lib/labels';
 
 interface LogRow {
   id: number;
@@ -43,7 +45,7 @@ export default function Logs() {
       >
         <input
           className="flex-1 border border-slate-300 rounded-lg px-3 py-2"
-          placeholder="Caută după user, acțiune, detalii…"
+          placeholder="Caută după utilizator sau detalii…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
@@ -55,7 +57,7 @@ export default function Logs() {
           <thead className="bg-slate-50 text-left">
             <tr>
               <th className="px-3 py-2">Timp</th>
-              <th className="px-3 py-2">User</th>
+              <th className="px-3 py-2">Utilizator</th>
               <th className="px-3 py-2">Rol</th>
               <th className="px-3 py-2">Acțiune</th>
               <th className="px-3 py-2">Detalii</th>
@@ -66,15 +68,15 @@ export default function Logs() {
               <tr key={l.id} className="border-t border-slate-100">
                 <td className="px-3 py-2 whitespace-nowrap text-slate-500">{l.timestamp}</td>
                 <td className="px-3 py-2 font-medium">{l.username}</td>
-                <td className="px-3 py-2">{l.role}</td>
-                <td className="px-3 py-2">{l.action}</td>
+                <td className="px-3 py-2">{ROLE_LABELS[l.role as Role] ?? l.role}</td>
+                <td className="px-3 py-2">{ACTIVITY_LABELS[l.action] ?? l.action}</td>
                 <td className="px-3 py-2 max-w-xs truncate text-slate-600">{l.details}</td>
               </tr>
             ))}
             {logs.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-3 py-8 text-center text-slate-400">
-                  Niciun log
+                  Nicio înregistrare
                 </td>
               </tr>
             )}

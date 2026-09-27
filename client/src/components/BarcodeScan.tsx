@@ -18,7 +18,7 @@ interface Props {
 }
 
 export default function BarcodeScan({
-  title = 'Scanare barcode',
+  title = 'Scanare coduri',
   hint,
   expected,
   onChange,
@@ -55,7 +55,7 @@ export default function BarcodeScan({
     async (codeRaw: string, addQty?: number) => {
       const code = codeRaw.trim();
       if (!code) {
-        setError('Introdu barcode');
+        setError('Introdu codul');
         return;
       }
       const amount = addQty ?? qtyRef.current ?? 1;
@@ -77,7 +77,7 @@ export default function BarcodeScan({
         } catch (err) {
           if (blockUnknown) {
             const msg =
-              err instanceof ApiError ? err.message : 'Barcode necunoscut în stoc';
+              err instanceof ApiError ? err.message : 'Cod necunoscut în stoc';
             setError(msg);
             showToast(`Necunoscut: ${code}`, true);
             return;
@@ -173,7 +173,7 @@ export default function BarcodeScan({
       <form onSubmit={addLine} className="flex flex-wrap gap-2 items-end">
         <div className="flex-1 min-w-[160px]">
           <label className="block text-xs font-medium text-slate-600 mb-1">
-            Barcode (manual)
+            Cod (manual)
           </label>
           <input
             className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono"
@@ -276,7 +276,7 @@ export default function BarcodeScan({
             if (!extras.length) return null;
             return (
               <p className="text-red-600 text-xs mt-2">
-                Extra: {extras.map((x) => `${x.barcode}×${x.qty}`).join(', ')}
+                În plus față de comandă: {extras.map((x) => `${x.barcode}×${x.qty}`).join(', ')}
               </p>
             );
           })()}

@@ -21,14 +21,14 @@ export default function Dashboard() {
     title: 'Tichete',
     desc:
       role === 'user2'
-        ? 'Coadă ORDERED (trimitere) + RETURNING (recepție retur)'
+        ? 'Comenzi de trimis și retururi de recepționat'
         : role === 'user3'
-          ? 'Coadă SENT — livrare'
+          ? 'Comenzi de livrat'
           : role === 'user4'
-            ? 'Coadă DELIVERED — retur outbound'
+            ? 'Retururi de predat'
             : role === 'user1'
-              ? 'Tichetele tale · corectează NEEDS_FIX'
-              : 'Toate tichetele & statusuri',
+              ? 'Cererile tale și cele de corectat'
+              : 'Toate tichetele și starea lor',
     color: 'from-brand-800 to-teal-700',
     icon: '🎫',
   });
@@ -41,7 +41,7 @@ export default function Dashboard() {
           ? user?.company
             ? `Articolele firmei ${user.company} (doar vizualizare)`
             : 'Doar vizualizare — contul nu are firmă setată'
-          : 'Cantități, barcode, ledger mișcări',
+          : 'Cantități și coduri de bare',
       color: 'from-slate-700 to-slate-900',
       icon: '📦',
     });
@@ -52,8 +52,8 @@ export default function Dashboard() {
       title: 'Exporturi',
       desc:
         role === 'user3' || role === 'user4'
-          ? 'Cereri în CSV pentru Excel'
-          : 'Stoc, mișcări și cereri în CSV pentru Excel',
+          ? 'Descarcă cererile pentru Excel'
+          : 'Descarcă stocul, mișcările și cererile pentru Excel',
       color: 'from-brand-700 to-brand-900',
       icon: '⬇️',
     });
@@ -62,14 +62,14 @@ export default function Dashboard() {
     cards.push({
       to: '/logs',
       title: 'Jurnal',
-      desc: 'Activity log',
+      desc: 'Istoric activitate',
       color: 'from-slate-800 to-brand-900',
       icon: '📋',
     });
     cards.push({
       to: '/users',
       title: 'Utilizatori',
-      desc: 'Admin users stub',
+      desc: 'Gestionare conturi',
       color: 'from-slate-600 to-slate-800',
       icon: '👤',
     });
@@ -98,27 +98,6 @@ export default function Dashboard() {
             <p className="text-white/85 text-sm mt-1.5 leading-relaxed">{c.desc}</p>
           </Link>
         ))}
-      </div>
-      <div className="mt-8 bt-card p-5 text-sm text-slate-600">
-        <h3 className="font-semibold text-slate-800 mb-3">Flux statusuri</h3>
-        <ol className="list-decimal list-inside space-y-1.5">
-          <li>
-            <strong>user1</strong> creează → <code>ORDERED</code>
-          </li>
-          <li>
-            <strong>user2</strong> Trimitere (scan match) → <code>SENT</code> (−stoc) sau cu
-            comentariu → <code>NEEDS_FIX</code>
-          </li>
-          <li>
-            <strong>user3</strong> scan livrare → <code>DELIVERED</code> (fără stoc)
-          </li>
-          <li>
-            <strong>user4</strong> scan retur outbound → <code>RETURNING</code> (fără stoc)
-          </li>
-          <li>
-            <strong>user2</strong> recepție retur (scan) → <code>CLOSED</code> (+stoc)
-          </li>
-        </ol>
       </div>
     </div>
   );

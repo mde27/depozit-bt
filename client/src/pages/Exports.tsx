@@ -205,7 +205,7 @@ export default function Exports() {
       <div>
         <h1 className="text-2xl font-bold">Exporturi</h1>
         <p className="text-sm text-slate-500">
-          Fișiere CSV pentru Excel (separator „;”, diacritice corecte). Orele sunt în ora României.
+          Descarcă datele într-un fișier care se deschide în Excel. Orele sunt în ora României.
         </p>
       </div>
 
@@ -323,7 +323,7 @@ export default function Exports() {
                 </select>
               </Field>
               <div className="sm:col-span-2">
-                <Field label="Caută articol (SKU, barcode, denumire, MF)">
+                <Field label="Caută articol (SKU, cod de bare, denumire, mijloc fix)">
                   <input
                     className={inputCls}
                     value={search}
@@ -418,7 +418,7 @@ export default function Exports() {
             onClick={() => void download()}
             className="w-full sm:w-auto px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-brand-700 hover:bg-brand-800 disabled:opacity-50"
           >
-            Descarcă CSV
+            Descarcă pentru Excel
           </button>
         </div>
       </section>

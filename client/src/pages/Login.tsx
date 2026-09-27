@@ -5,8 +5,8 @@ import { ApiError } from '../lib/api';
 
 export default function Login() {
   const { user, loading, login } = useAuth();
-  const [username, setUsername] = useState('user1');
-  const [password, setPassword] = useState('user123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -42,7 +42,7 @@ export default function Login() {
           </div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Depozit BT</h1>
           <p className="text-slate-500 text-sm mt-2 leading-relaxed">
-            Magazie · barcode · cerere → trimitere → livrare → retur
+            Gestiune depozit
           </p>
         </div>
         <form onSubmit={onSubmit} className="space-y-4">
@@ -76,11 +76,6 @@ export default function Login() {
             {busy ? 'Se autentifică…' : 'Autentificare'}
           </button>
         </form>
-        <p className="text-xs text-slate-400 mt-8 text-center leading-relaxed border-t border-slate-100 pt-5">
-          Demo: <span className="font-mono text-slate-500">admin / admin123</span>
-          <br />
-          <span className="font-mono text-slate-500">user1–user4 / user123</span>
-        </p>
       </div>
     </div>
   );

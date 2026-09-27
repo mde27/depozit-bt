@@ -51,6 +51,9 @@ function StopIcon({ className = '' }: { className?: string }) {
   );
 }
 
+const CAMERA_UNAVAILABLE =
+  'Camera nu este disponibilă pe acest dispozitiv. Introdu codul manual.';
+
 /**
  * Live camera barcode/QR scanner using html5-qrcode (lazy-loaded).
  * Requires HTTPS or localhost for getUserMedia.
@@ -108,13 +111,8 @@ export default function BarcodeScanner({
     setError('');
     setStarting(true);
     try {
-      if (typeof window === 'undefined') {
-        throw new Error('Camera disponibilă doar în browser');
-      }
-      if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error(
-          'Camera indisponibilă în acest browser. Folosește introducerea manuală sau deschide pe HTTPS / localhost.'
-        );
+      if (typeof window === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+        throw new Error(CAMERA_UNAVAILABLE);
       }
 
       const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import('html5-qrcode');
@@ -178,14 +176,18 @@ export default function BarcodeScanner({
           : '';
       if (name === 'NotAllowedError' || /permission|denied|NotAllowed/i.test(msg)) {
         setError(
-          'Acces cameră refuzat. Activează permisiunea în browser, apoi încearcă din nou. Poți introduce barcode-ul manual.'
+          'Accesul la cameră a fost refuzat. Permite accesul la cameră, apoi încearcă din nou. Poți introduce codul și manual.'
         );
       } else if (name === 'NotFoundError' || /not found|no camera/i.test(msg)) {
         setError(
-          'Nicio cameră detectată pe acest dispozitiv. Folosește introducerea manuală.'
+          'Nu a fost găsită nicio cameră pe acest dispozitiv. Introdu codul manual.'
         );
       } else {
-        setError(msg || 'Nu s-a putut porni camera');
+        setError(
+          msg === CAMERA_UNAVAILABLE
+            ? CAMERA_UNAVAILABLE
+            : 'Camera nu a putut porni. Încearcă din nou sau introdu codul manual.'
+        );
       }
       setActive(false);
       try {
@@ -294,10 +296,7 @@ export default function BarcodeScanner({
       {!active && !error && (
         <p className="text-xs text-slate-400">
           {hint ?? (
-            <>
-              Camera necesită <strong>localhost</strong> sau <strong>HTTPS</strong>. Pe telefon se
-              preferă camera din spate. Debounce ~1.5s pe același cod.
-            </>
+            <>Apasă butonul și îndreaptă camera spre codul de bare.</>
           )}
         </p>
       )}

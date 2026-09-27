@@ -4,6 +4,7 @@ import { api } from '../lib/api';
 import StatusBadge from '../components/StatusBadge';
 import { useAuth } from '../lib/auth';
 import type { Ticket } from '../lib/types';
+import { SCAN_STAGE_LABELS, TICKET_HISTORY_LABELS, historyNote } from '../lib/labels';
 
 export default function TicketDetail() {
   const { id } = useParams();
@@ -26,28 +27,28 @@ export default function TicketDetail() {
 
   if ((role === 'user2' || role === 'admin') && ticket.status === 'ORDERED') {
     actions.push({
-      label: 'Trimitere (scan barcode)',
+      label: 'Trimitere (scanare)',
       to: `/tichete/${ticket.id}/scan/send`,
       className: 'bg-sky-700 hover:bg-sky-800',
     });
   }
   if ((role === 'user3' || role === 'admin') && ticket.status === 'SENT') {
     actions.push({
-      label: 'Livrare (scan)',
+      label: 'Livrare (scanare)',
       to: `/tichete/${ticket.id}/scan/deliver`,
       className: 'bg-success-700 hover:bg-success-800',
     });
   }
   if ((role === 'user4' || role === 'admin') && ticket.status === 'DELIVERED') {
     actions.push({
-      label: 'Retur outbound (scan)',
+      label: 'Predare retur (scanare)',
       to: `/tichete/${ticket.id}/scan/return_out`,
       className: 'bg-violet-700 hover:bg-violet-800',
     });
   }
   if ((role === 'user2' || role === 'admin') && ticket.status === 'RETURNING') {
     actions.push({
-      label: 'Recepție retur (scan → +stoc)',
+      label: 'Recepție retur (scanare)',
       to: `/tichete/${ticket.id}/scan/receive_back`,
       className: 'bg-brand-700 hover:bg-brand-800',
     });
@@ -138,8 +139,8 @@ export default function TicketDetail() {
                 <span className="font-mono text-xs text-slate-400">{it.barcode}</span>
               </span>
               <span className="text-xs tabular-nums whitespace-nowrap text-slate-600">
-                cmd {it.ordered_qty} · trim {it.sent_qty} · liv {it.delivered_qty} · ret↓{' '}
-                {it.return_out_qty} · ret↑ {it.received_back_qty}
+                comandat {it.ordered_qty} · trimis {it.sent_qty} · livrat {it.delivered_qty} ·
+                retur predat {it.return_out_qty} · retur primit {it.received_back_qty}
               </span>
             </li>
           ))}
@@ -152,7 +153,8 @@ export default function TicketDetail() {
           <ul className="text-xs space-y-1 max-h-48 overflow-y-auto">
             {ticket.scans!.map((s) => (
               <li key={s.id} className="text-slate-600">
-                <span className="text-slate-400">{s.created_at}</span> · {s.stage} ·{' '}
+                <span className="text-slate-400">{s.created_at}</span> ·{' '}
+                {SCAN_STAGE_LABELS[s.stage] || s.stage} ·{' '}
                 <span className="font-mono">{s.barcode}</span> ×{s.qty} · {s.created_by}
                 {s.stock_name ? ` · ${s.stock_name}` : ''}
               </li>
@@ -164,13 +166,16 @@ export default function TicketDetail() {
       <section className="bg-white border border-slate-200 rounded-xl p-4">
         <h3 className="font-semibold mb-2">Istoric</h3>
         <ul className="text-xs space-y-1 max-h-48 overflow-y-auto">
-          {(ticket.history || []).map((h) => (
-            <li key={h.id} className="text-slate-600">
-              <span className="text-slate-400">{h.at}</span> · {h.username} ·{' '}
-              <strong>{h.action}</strong>
-              {h.details ? ` — ${h.details.slice(0, 120)}` : ''}
-            </li>
-          ))}
+          {(ticket.history || []).map((h) => {
+            const note = historyNote(h.details);
+            return (
+              <li key={h.id} className="text-slate-600">
+                <span className="text-slate-400">{h.at}</span> · {h.username} ·{' '}
+                <strong>{TICKET_HISTORY_LABELS[h.action] || h.action}</strong>
+                {note ? ` — ${note.slice(0, 120)}` : ''}
+              </li>
+            );
+          })}
         </ul>
       </section>
     </div>

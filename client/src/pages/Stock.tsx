@@ -119,14 +119,14 @@ export default function Stock() {
           <thead className="bg-slate-50 text-left">
             <tr>
               <th className="px-3 py-2">SKU</th>
-              <th className="px-3 py-2">Barcode</th>
-              <th className="px-3 py-2">MF / ORIG</th>
+              <th className="px-3 py-2">Cod de bare</th>
+              <th className="px-3 py-2">Mijloc fix</th>
               <th className="px-3 py-2">Denumire</th>
               <th className="px-3 py-2">Sursă</th>
               <th className="px-3 py-2">Locație</th>
-              <th className="px-3 py-2">Companie</th>
+              <th className="px-3 py-2">Firmă</th>
               <th className="px-3 py-2 text-right">Cant.</th>
-              <th className="px-3 py-2">Ledger</th>
+              <th className="px-3 py-2">Istoric</th>
               {canManage && <th className="px-3 py-2">Acțiuni</th>}
             </tr>
           </thead>
