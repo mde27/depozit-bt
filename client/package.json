@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --port 5173 --host",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
     "html5-qrcode": "^2.3.8",
@@ -21,6 +22,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "tailwindcss": "^4.0.14",
     "typescript": "^5.8.2",
-    "vite": "^6.2.2"
+    "vite": "^6.2.2",
+    "vitest": "^4.1.11"
   }
 }

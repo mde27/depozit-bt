@@ -1,11 +1,54 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import type { Html5Qrcode as Html5QrcodeType } from 'html5-qrcode';
 
 interface Props {
   onScan: (barcode: string) => void;
-  /** Debounce window for the same code (ms). Default 1500 */
+  /** Debounce window for the same code (ms). Default 1500. 0 = pass every decode through. */
   debounceMs?: number;
   className?: string;
+  /** 'large' = full-width, thumb-friendly (>=56px) buttons for phones. Default 'normal'. */
+  size?: 'normal' | 'large';
+  startLabel?: string;
+  stopLabel?: string;
+  /** Disable the start button (e.g. required session fields missing). */
+  startDisabled?: boolean;
+  /**
+   * Called synchronously inside the start tap, before the camera starts.
+   * Use it for things that need a user gesture (unlocking Web Audio on iOS).
+   */
+  onUserStart?: () => void;
+  /** Notified when the camera starts / stops (via the buttons). */
+  onActiveChange?: (active: boolean) => void;
+  /** Show the small "Scanat: …" pill next to the button. Default true. */
+  showFlash?: boolean;
+  /** Replaces the default hint shown while the camera is off. */
+  hint?: ReactNode;
+}
+
+function CameraIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M3 7h3l2-3h8l2 3h3v13H3z" />
+      <circle cx="12" cy="13" r="4" />
+    </svg>
+  );
+}
+
+function StopIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <rect x="6" y="6" width="12" height="12" rx="2" />
+    </svg>
+  );
 }
 
 /**
@@ -18,6 +61,14 @@ export default function BarcodeScanner({
   onScan,
   debounceMs = 1500,
   className = '',
+  size = 'normal',
+  startLabel,
+  stopLabel,
+  startDisabled = false,
+  onUserStart,
+  onActiveChange,
+  showFlash = true,
+  hint,
 }: Props) {
   const reactId = useId().replace(/:/g, '');
   const elementId = `bt-qr-reader-${reactId}`;
@@ -25,6 +76,9 @@ export default function BarcodeScanner({
   const lastRef = useRef<{ code: string; at: number }>({ code: '', at: 0 });
   const onScanRef = useRef(onScan);
   onScanRef.current = onScan;
+  const onActiveChangeRef = useRef(onActiveChange);
+  onActiveChangeRef.current = onActiveChange;
+  const large = size === 'large';
 
   const [active, setActive] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -103,15 +157,18 @@ export default function BarcodeScanner({
             return;
           }
           lastRef.current = { code, at: now };
-          setFlash(code);
+          if (showFlash) {
+            setFlash(code);
+            window.setTimeout(() => setFlash((f) => (f === code ? '' : f)), 1200);
+          }
           onScanRef.current(code);
-          window.setTimeout(() => setFlash((f) => (f === code ? '' : f)), 1200);
         },
         () => {
           /* frame miss — ignore */
         }
       );
       setActive(true);
+      onActiveChangeRef.current?.(true);
     } catch (e: unknown) {
       scannerRef.current = null;
       const msg = e instanceof Error ? e.message : String(e);
@@ -161,29 +218,57 @@ export default function BarcodeScanner({
       setActive(false);
       setStarting(false);
       setFlash('');
+      onActiveChangeRef.current?.(false);
     }
   }
 
   return (
     <div className={`space-y-2 ${className}`}>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className={large ? 'space-y-2' : 'flex flex-wrap items-center gap-2'}>
         {!active ? (
           <button
             type="button"
-            disabled={starting}
-            onClick={() => void start()}
-            className="bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg"
+            disabled={starting || startDisabled}
+            onClick={() => {
+              onUserStart?.();
+              void start();
+            }}
+            className={
+              large
+                ? 'w-full min-h-[56px] flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white text-lg font-semibold px-5 py-3 rounded-xl shadow-sm touch-manipulation select-none'
+                : 'bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg'
+            }
           >
-            {starting ? 'Se pornește…' : '📷 Pornește camera'}
+            {large ? (
+              <>
+                <CameraIcon className="w-7 h-7 shrink-0" />
+                <span>{starting ? 'Se pornește camera…' : startLabel || 'Scanează cu camera'}</span>
+              </>
+            ) : starting ? (
+              'Se pornește…'
+            ) : (
+              startLabel || '📷 Pornește camera'
+            )}
           </button>
         ) : (
           <button
             type="button"
             disabled={starting}
             onClick={() => void stop()}
-            className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg"
+            className={
+              large
+                ? 'w-full min-h-[56px] flex items-center justify-center gap-3 bg-red-600 hover:bg-red-700 active:bg-red-800 disabled:opacity-50 text-white text-lg font-semibold px-5 py-3 rounded-xl shadow-sm touch-manipulation select-none'
+                : 'bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg'
+            }
           >
-            Oprește camera
+            {large ? (
+              <>
+                <StopIcon className="w-6 h-6 shrink-0" />
+                <span>{stopLabel || 'Oprește camera'}</span>
+              </>
+            ) : (
+              stopLabel || 'Oprește camera'
+            )}
           </button>
         )}
         {flash && (
@@ -208,8 +293,12 @@ export default function BarcodeScanner({
 
       {!active && !error && (
         <p className="text-xs text-slate-400">
-          Camera necesită <strong>localhost</strong> sau <strong>HTTPS</strong>. Pe telefon se
-          preferă camera din spate. Debounce ~1.5s pe același cod.
+          {hint ?? (
+            <>
+              Camera necesită <strong>localhost</strong> sau <strong>HTTPS</strong>. Pe telefon se
+              preferă camera din spate. Debounce ~1.5s pe același cod.
+            </>
+          )}
         </p>
       )}
     </div>
