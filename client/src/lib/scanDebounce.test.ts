@@ -82,4 +82,10 @@ describe('normalizeScannedCode', () => {
     expect(normalizeScannedCode(null)).toBe('');
     expect(normalizeScannedCode(undefined)).toBe('');
   });
+  it('strips whitespace, scanner control characters and the Excel apostrophe', () => {
+    expect(normalizeScannedCode('  1225859\r\n')).toBe('1225859');
+    expect(normalizeScannedCode('\u001D1225859\u001D')).toBe('1225859');
+    expect(normalizeScannedCode("'359547")).toBe('359547');
+    expect(normalizeScannedCode('\uFEFF 000001225859\t')).toBe('000001225859');
+  });
 });

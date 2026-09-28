@@ -21,9 +21,13 @@ export interface ScanDebouncer {
   reset(): void;
 }
 
+/** Whitespace, control characters (CR/LF/TAB, GS1 group separator) and zero-width chars. */
+const EDGE_JUNK = /^[\s\u0000-\u001F\u007F\u200B-\u200D\uFEFF]+|[\s\u0000-\u001F\u007F\u200B-\u200D\uFEFF]+$/g;
+
+/** Same rules as normalizeScanCode on the server (functions/_lib/catalog.ts). */
 export function normalizeScannedCode(raw: unknown): string {
-  let s = String(raw ?? '').trim();
-  if (s.startsWith("'")) s = s.slice(1).trim();
+  let s = String(raw ?? '').replace(EDGE_JUNK, '');
+  if (s.startsWith("'")) s = s.slice(1).replace(EDGE_JUNK, '');
   return s;
 }
 

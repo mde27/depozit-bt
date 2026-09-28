@@ -28,10 +28,42 @@ type CatalogItem = {
   numar_serial: string | null;
 };
 
+/** Existing stock line for a scanned code (returned by the lookup). */
+type StockMatch = {
+  id: number;
+  barcode: string | null;
+  name: string;
+  name2: string | null;
+  description: string | null;
+  quantity: number;
+  company: string | null;
+  place: string | null;
+  mijloc_fix: string | null;
+  mijloc_fix_orig: string | null;
+  is_uncatalogued: number;
+};
+
+type LookupResponse = {
+  found: boolean;
+  item?: CatalogItem;
+  inStock?: boolean;
+  stock?: StockMatch | null;
+  code: string;
+};
+
+type ReceiveResponse = {
+  item: StockItem;
+  catalogHit: boolean;
+  stockHit?: boolean;
+  quantityBefore?: number;
+  companyRequested?: string | null;
+};
+
+/** 'hit' = known code: found in the SMISS catalog and/or already in stock. */
 type LookupState =
   | { status: 'idle' }
   | { status: 'loading'; code: string }
-  | { status: 'hit'; code: string; item: CatalogItem }
+  | { status: 'hit'; code: string; item: CatalogItem | null; stock: StockMatch | null }
   | { status: 'miss'; code: string };
 
 type Mode = 'single' | 'continuous';
@@ -44,6 +76,8 @@ type SessionRow = {
   status: 'saving' | 'ok' | 'error';
   name?: string;
   catalogHit?: boolean;
+  /** code was already in stock (quantity added to the existing line) */
+  stockHit?: boolean;
   qtyAfter?: number;
   error?: string;
 };
@@ -144,11 +178,16 @@ export default function StockReceive() {
     setSuccess('');
     setLookup({ status: 'loading', code });
     try {
-      const data = await api<{ found: boolean; item?: CatalogItem; code: string }>(
+      const data = await api<LookupResponse>(
         `/api/catalog/lookup?code=${encodeURIComponent(code)}`
       );
-      if (data.found && data.item) {
-        setLookup({ status: 'hit', code: data.code || code, item: data.item });
+      const item = data.found && data.item ? data.item : null;
+      const stock = data.inStock && data.stock ? data.stock : null;
+      if (item || stock) {
+        setLookup({ status: 'hit', code: data.code || code, item, stock });
+        // already in stock: the line keeps its company, so offer it when the field is empty
+        const stockCompany = stock?.company?.trim();
+        if (stockCompany) setCompany((cur) => (cur.trim() ? cur : stockCompany));
         scanFeedback('ok');
       } else {
         setLookup({ status: 'miss', code: data.code || code });
@@ -175,7 +214,7 @@ export default function StockReceive() {
     setError('');
     setSuccess('');
     try {
-      const data = await api<{ item: StockItem; catalogHit: boolean }>('/api/stock/receive', {
+      const data = await api<ReceiveResponse>('/api/stock/receive', {
         method: 'POST',
         body: JSON.stringify({
           code: lookup.code,
@@ -186,10 +225,16 @@ export default function StockReceive() {
         }),
       });
       const name = data.item.name;
+      const keptCompany =
+        data.stockHit && data.companyRequested && data.item.company
+          ? ` Articolul rămâne pe firma „${data.item.company}”.`
+          : '';
       setSuccess(
-        data.catalogHit
-          ? `Adăugat/actualizat: ${name} (cant. ${data.item.quantity})`
-          : `Adăugat ca articol necunoscut: ${name} (cant. ${data.item.quantity})`
+        data.stockHit
+          ? `Adăugat la articolul existent: ${name} (cant. ${data.item.quantity})${keptCompany}`
+          : data.catalogHit
+            ? `Adăugat în stoc: ${name} (cant. ${data.item.quantity})`
+            : `Adăugat ca articol necunoscut: ${name} (cant. ${data.item.quantity})`
       );
       setLookup({ status: 'idle' });
       setManual('');
@@ -224,7 +269,7 @@ export default function StockReceive() {
           : [{ id, code, at, status: 'saving' }, ...prev]
       );
       try {
-        const data = await api<{ item: StockItem; catalogHit: boolean }>('/api/stock/receive', {
+        const data = await api<ReceiveResponse>('/api/stock/receive', {
           method: 'POST',
           body: JSON.stringify({
             code,
@@ -234,7 +279,9 @@ export default function StockReceive() {
             place: f.place.trim() || undefined,
           }),
         });
-        const hit = Boolean(data.catalogHit);
+        const stockHit = Boolean(data.stockHit);
+        // known = in the SMISS catalog or already in our stock (e.g. saved manually before)
+        const known = Boolean(data.catalogHit) || stockHit;
         setRows((prev) =>
           prev.map((r) =>
             r.id === id
@@ -242,17 +289,22 @@ export default function StockReceive() {
                   ...r,
                   status: 'ok',
                   name: data.item.name,
-                  catalogHit: hit,
+                  catalogHit: known,
+                  stockHit,
                   qtyAfter: data.item.quantity,
                 }
               : r
           )
         );
-        scanFeedback(hit ? 'ok' : 'warn');
+        scanFeedback(known ? 'ok' : 'warn');
         showConfirmation({
-          kind: hit ? 'ok' : 'warn',
+          kind: known ? 'ok' : 'warn',
           code,
-          text: hit ? data.item.name : 'Articol necunoscut — adăugat în stoc',
+          text: stockHit
+            ? `${data.item.name} · deja în stoc, acum ${data.item.quantity} buc.`
+            : known
+              ? data.item.name
+              : 'Articol necunoscut — adăugat în stoc',
         });
       } catch (e) {
         const msg = e instanceof ApiError ? e.message : 'Eroare la salvare. Verifică conexiunea.';
@@ -446,12 +498,14 @@ export default function StockReceive() {
             Completează o dată datele de mai jos, apoi scanează articol după articol. Fiecare
             scanare adaugă <strong>1 buc.</strong> în stoc imediat; camera rămâne deschisă. Pentru
             încă o bucată cu același cod, ia camera de pe cod o clipă și scanează din nou.
-            Articolele care nu sunt în catalog se salvează ca necunoscute (galben).
+            Dacă articolul este deja în stoc, se adaugă doar cantitatea la el. Articolele care nu
+            sunt nici în catalog, nici în stoc se salvează ca necunoscute (galben).
           </>
         ) : (
           <>
-            Scanează codul de mijloc fix de pe etichetă. Dacă articolul este în catalog, denumirea
-            se completează automat. Altfel se salvează ca necunoscut (evidențiat cu galben).
+            Scanează codul de mijloc fix de pe etichetă. Dacă articolul este în catalog sau deja în
+            stoc, este recunoscut automat; pentru un articol deja în stoc se adaugă doar cantitatea.
+            Altfel se salvează ca necunoscut (evidențiat cu galben).
           </>
         )}
       </p>
@@ -609,7 +663,14 @@ export default function StockReceive() {
                     {r.status === 'saving' && <span className="text-slate-400">Se salvează…</span>}
                     {r.status === 'ok' &&
                       (r.catalogHit ? (
-                        r.name
+                        <>
+                          {r.stockHit && (
+                            <span className="text-[10px] font-semibold uppercase tracking-wide bg-success-100 text-success-800 px-1.5 py-0.5 rounded mr-1">
+                              deja în stoc
+                            </span>
+                          )}
+                          {r.name}
+                        </>
                       ) : (
                         <span className="text-amber-800">
                           <span className="text-[10px] font-semibold uppercase tracking-wide bg-amber-200/70 px-1.5 py-0.5 rounded mr-1">
@@ -645,33 +706,79 @@ export default function StockReceive() {
 
       {/* ---------- single mode: lookup result + confirm form ---------- */}
       {!continuous && lookup.status === 'loading' && (
-        <div className="text-sm text-slate-500">Se caută în catalog: {lookup.code}…</div>
+        <div className="text-sm text-slate-500">Se caută în catalog și în stoc: {lookup.code}…</div>
       )}
 
       {!continuous && lookup.status === 'hit' && (
         <div className="rounded-xl border border-success-300 bg-success-50 px-4 py-3 space-y-1">
           <div className="text-xs font-semibold uppercase tracking-wide text-success-800">
-            Găsit în catalog
+            {lookup.item ? 'Găsit în catalog' : 'Găsit în stoc'}
           </div>
-          <div className="font-semibold text-success-950">{lookup.item.denumire1}</div>
-          {lookup.item.denumire2 && (
-            <div className="text-sm text-success-900">{lookup.item.denumire2}</div>
+          {lookup.item ? (
+            <>
+              <div className="font-semibold text-success-950">{lookup.item.denumire1}</div>
+              {lookup.item.denumire2 && (
+                <div className="text-sm text-success-900">{lookup.item.denumire2}</div>
+              )}
+              {lookup.item.description && (
+                <div className="text-xs text-success-800/80">{lookup.item.description}</div>
+              )}
+              <div className="text-xs font-mono text-success-900 pt-1">
+                Mijloc fix: {lookup.item.mijloc_fix}
+                {lookup.item.mijloc_fix_orig
+                  ? ` · Mijloc fix original: ${lookup.item.mijloc_fix_orig}`
+                  : ''}
+                {` · Cod scanat: ${lookup.code}`}
+              </div>
+            </>
+          ) : (
+            lookup.stock && (
+              <>
+                <div className="font-semibold text-success-950">{lookup.stock.name}</div>
+                {lookup.stock.name2 && (
+                  <div className="text-sm text-success-900">{lookup.stock.name2}</div>
+                )}
+                {lookup.stock.description && (
+                  <div className="text-xs text-success-800/80">{lookup.stock.description}</div>
+                )}
+                <div className="text-xs text-success-900">
+                  Nu este în catalog, dar a fost salvat deja în stoc.
+                </div>
+                <div className="text-xs font-mono text-success-900 pt-1">
+                  {lookup.stock.barcode ? `Cod în stoc: ${lookup.stock.barcode} · ` : ''}
+                  {`Cod scanat: ${lookup.code}`}
+                </div>
+              </>
+            )
           )}
-          {lookup.item.description && (
-            <div className="text-xs text-success-800/80">{lookup.item.description}</div>
+          {lookup.stock && (
+            <div
+              data-testid="already-in-stock"
+              className="mt-2 rounded-lg border border-success-300 bg-white/80 px-3 py-2 text-sm text-success-950"
+            >
+              <div className="font-semibold">
+                Deja în stoc: <span className="tabular-nums">{lookup.stock.quantity}</span> buc.
+              </div>
+              <div className="text-xs text-success-900 break-words">
+                {lookup.item && lookup.stock.name !== lookup.item.denumire1 && (
+                  <>În stoc ca: {lookup.stock.name} · </>
+                )}
+                Firmă: {lookup.stock.company || '—'}
+                {lookup.stock.place ? ` · Locație: ${lookup.stock.place}` : ''}
+              </div>
+              <div className="text-xs text-success-900 pt-0.5">
+                La confirmare se adaugă doar cantitatea la acest articol (nu se creează un rând nou).
+                {lookup.stock.company ? ' Articolul rămâne pe firma lui.' : ''}
+              </div>
+            </div>
           )}
-          <div className="text-xs font-mono text-success-900 pt-1">
-            Mijloc fix: {lookup.item.mijloc_fix}
-            {lookup.item.mijloc_fix_orig ? ` · Mijloc fix original: ${lookup.item.mijloc_fix_orig}` : ''}
-            {` · Cod scanat: ${lookup.code}`}
-          </div>
         </div>
       )}
 
       {!continuous && lookup.status === 'miss' && (
         <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 space-y-1">
           <div className="text-xs font-semibold uppercase tracking-wide text-amber-800">
-            Negăsit în catalog
+            Negăsit în catalog și nici în stoc
           </div>
           <div className="font-semibold text-amber-950">Articol necunoscut: {lookup.code}</div>
           <div className="text-xs text-amber-900">

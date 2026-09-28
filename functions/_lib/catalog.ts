@@ -28,24 +28,60 @@ export type StockItemRow = Record<string, unknown> & {
   company?: string | null;
 };
 
-/** Trim + strip leading apostrophe (Excel) + optional leading-zero variants. */
+/**
+ * Length of the zero-padded MIJLOC_FIX_ORIG codes in the SMISS catalog.
+ * RAPORT_SMISS_80 (and part of RAPORT_SMISS_01) store ORIG as 12 digits with
+ * leading zeros ("000001225859"), while the label / scanner gives "1225859".
+ * All 23,916 zero-padded ORIG values in the catalog are exactly 12 characters.
+ */
+const ORIG_PAD_LENGTH = 12;
+
+/** Whitespace, control characters (CR/LF/TAB, GS1 group separator) and zero-width chars. */
+const EDGE_JUNK = /^[\s\u0000-\u001F\u007F\u200B-\u200D\uFEFF]+|[\s\u0000-\u001F\u007F\u200B-\u200D\uFEFF]+$/g;
+
+/** Trim (incl. scanner control chars) + strip leading apostrophe (Excel). */
 export function normalizeScanCode(raw: string): string {
-  let s = String(raw ?? '').trim();
-  if (s.startsWith("'")) s = s.slice(1).trim();
+  let s = String(raw ?? '').replace(EDGE_JUNK, '');
+  if (s.startsWith("'")) s = s.slice(1).replace(EDGE_JUNK, '');
   return s;
 }
 
+/**
+ * Candidate spellings of a scanned code, most specific first:
+ *  - the code as scanned (and upper-case, for codes like "INV00001" / "C213001")
+ *  - without leading zeros ("000001225859" -> "1225859")
+ *  - digits only: zero-padded to 12 ("1225859" -> "000001225859"), how ORIG is stored
+ *  - inventory-number form "000001091229.0000" -> "1091229" (NUMAR_INVENTAR on labels)
+ *  - with a leading apostrophe (legacy Excel imports)
+ */
 export function codeVariants(code: string): string[] {
   const base = normalizeScanCode(code);
   if (!base) return [];
-  const set = new Set<string>([base]);
-  // without leading zeros (keep at least one digit)
+  const list: string[] = [];
+  const add = (v: string | null | undefined) => {
+    if (v && !list.includes(v)) list.push(v);
+  };
+  add(base);
+  add(base.toUpperCase());
   const stripped = base.replace(/^0+/, '') || '0';
-  if (stripped !== base) set.add(stripped);
-  // with apostrophe prefix (how ORIG sometimes appears in Excel)
-  set.add("'" + base);
-  if (stripped !== base) set.add("'" + stripped);
-  return [...set];
+  add(stripped);
+  if (/^\d+$/.test(stripped) && stripped.length < ORIG_PAD_LENGTH) {
+    add(stripped.padStart(ORIG_PAD_LENGTH, '0'));
+  }
+  const inv = /^0*(\d+)\.\d{4}$/.exec(base);
+  if (inv) {
+    add(inv[1]);
+    if (inv[1].length < ORIG_PAD_LENGTH) add(inv[1].padStart(ORIG_PAD_LENGTH, '0'));
+  }
+  for (const v of [...list]) add("'" + v);
+  return list;
+}
+
+const CATALOG_COLUMNS = `mijloc_fix, mijloc_fix_orig, clasa, denumire1, denumire2,
+                description, numar_serial, source_report`;
+
+function placeholders(n: number): string {
+  return Array.from({ length: n }, () => '?').join(', ');
 }
 
 export async function lookupCatalog(
@@ -55,29 +91,37 @@ export async function lookupCatalog(
   const variants = codeVariants(code);
   if (!variants.length) return null;
 
-  // Try exact MIJLOC_FIX / ORIG for each variant
-  for (const v of variants) {
-    const row = await db
-      .prepare(
-        `SELECT mijloc_fix, mijloc_fix_orig, clasa, denumire1, denumire2,
-                description, numar_serial, source_report
-         FROM smiss_catalog
-         WHERE mijloc_fix = ? OR mijloc_fix_orig = ?
-         LIMIT 1`
-      )
-      .bind(v, v)
-      .first<SmissCatalogRow>();
-    if (row) return row;
+  // One indexed query for all spellings (MIJLOC_FIX is the PK, ORIG has idx_smiss_orig).
+  const ph = placeholders(variants.length);
+  const { results } = await db
+    .prepare(
+      `SELECT ${CATALOG_COLUMNS}
+       FROM smiss_catalog
+       WHERE mijloc_fix IN (${ph}) OR mijloc_fix_orig IN (${ph})
+       LIMIT 50`
+    )
+    .bind(...variants, ...variants)
+    .all<SmissCatalogRow>();
+  const rows = results || [];
+  if (rows.length) {
+    // Most specific spelling wins; for the same spelling MIJLOC_FIX beats ORIG.
+    for (const v of variants) {
+      const byFix = rows.find((r) => r.mijloc_fix === v);
+      if (byFix) return byFix;
+      const byOrig = rows.find((r) => r.mijloc_fix_orig === v);
+      if (byOrig) return byOrig;
+    }
+    return rows[0];
   }
 
-  // Also match ORIG with leading zeros stripped on the DB side (cheap-ish)
+  // Last resort for codes scanned WITH leading zeros: compare with zeros stripped on the
+  // DB side (full scan — only reached when nothing above matched).
   const base = normalizeScanCode(code);
   const stripped = base.replace(/^0+/, '') || '0';
   if (stripped && stripped !== base) {
     const row = await db
       .prepare(
-        `SELECT mijloc_fix, mijloc_fix_orig, clasa, denumire1, denumire2,
-                description, numar_serial, source_report
+        `SELECT ${CATALOG_COLUMNS}
          FROM smiss_catalog
          WHERE LTRIM(mijloc_fix, '0') = ? OR LTRIM(IFNULL(mijloc_fix_orig, ''), '0') = ?
          LIMIT 1`
@@ -90,30 +134,183 @@ export async function lookupCatalog(
   return null;
 }
 
-async function findExistingStock(
+/**
+ * Finds the stock line for a scanned code: by barcode, MIJLOC_FIX, MIJLOC_FIX_ORIG or SKU,
+ * using the same spellings as the catalog lookup plus the catalog's own codes for that item.
+ * `scope` (optional) restricts the search, e.g. to the user's company.
+ */
+export async function findStockByCode(
   db: D1Database,
   code: string,
-  catalog: SmissCatalogRow | null
+  catalog: SmissCatalogRow | null,
+  scope: { sql: string; params: unknown[] } = { sql: '1=1', params: [] }
 ): Promise<StockItemRow | null> {
-  const variants = codeVariants(code);
-  const candidates = new Set<string>(variants);
-  if (catalog?.mijloc_fix) candidates.add(catalog.mijloc_fix);
-  if (catalog?.mijloc_fix_orig) {
-    for (const v of codeVariants(catalog.mijloc_fix_orig)) candidates.add(v);
+  const base = normalizeScanCode(code);
+  const candidates: string[] = [];
+  const add = (v: string | null | undefined) => {
+    if (v && !candidates.includes(v)) candidates.push(v);
+  };
+  // Stock codes are stored normalised (no Excel apostrophe), so those spellings are skipped.
+  const addAll = (c: string | null | undefined) => {
+    if (c) for (const v of codeVariants(c)) if (!v.startsWith("'")) add(v);
+  };
+  addAll(code);
+  addAll(catalog?.mijloc_fix);
+  addAll(catalog?.mijloc_fix_orig);
+  if (!candidates.length) return null;
+  // D1 allows at most 100 bound parameters per query (4 per candidate + 3 + scope).
+  candidates.splice(20);
+
+  const ph = placeholders(candidates.length);
+  return db
+    .prepare(
+      `SELECT * FROM stock_items
+       WHERE (barcode IN (${ph}) OR mijloc_fix IN (${ph}) OR mijloc_fix_orig IN (${ph})
+              OR sku IN (${ph}))
+         AND ${scope.sql}
+       ORDER BY CASE WHEN barcode = ? THEN 0
+                     WHEN mijloc_fix = ? OR mijloc_fix_orig = ? THEN 1
+                     ELSE 2 END,
+                id
+       LIMIT 1`
+    )
+    .bind(...candidates, ...candidates, ...candidates, ...candidates, ...scope.params, base, base, base)
+    .first<StockItemRow>();
+}
+
+/** Fields returned to the intake page for a code that is already in stock. */
+export function stockSummary(row: StockItemRow) {
+  return {
+    id: row.id,
+    sku: row.sku,
+    barcode: row.barcode,
+    name: row.name,
+    name2: row.name2 ?? null,
+    description: row.description ?? null,
+    quantity: Number(row.quantity || 0),
+    company: row.company ?? null,
+    place: row.place ?? null,
+    mijloc_fix: row.mijloc_fix ?? null,
+    mijloc_fix_orig: row.mijloc_fix_orig ?? null,
+    is_uncatalogued: Number(row.is_uncatalogued || 0),
+  };
+}
+
+type ReceiveResult = {
+  item: StockItemRow;
+  catalogHit: boolean;
+  /** true = the code was already in stock; only its quantity was increased. */
+  stockHit: boolean;
+  quantityBefore: number;
+  /** Company the request asked for, when it differs from the existing line's owner (kept). */
+  companyRequested?: string | null;
+};
+
+function isPlaceholderName(row: StockItemRow): boolean {
+  const name = String(row.name || '');
+  return name.startsWith('NECUNOSCUT ');
+}
+
+/**
+ * Code already in stock → only the quantity changes (+ RECEIVE movement).
+ * Owner, location and first source of the line are kept (filled in only if empty);
+ * the intake source is appended to the comments.
+ * If the line was saved manually as unknown and the code is now found in the SMISS
+ * catalog, the empty catalog fields and the automatic "NECUNOSCUT …" name are completed.
+ */
+async function addToExisting(
+  db: D1Database,
+  user: AuthUser,
+  existing: StockItemRow,
+  args: {
+    code: string;
+    qty: number;
+    source_from: string;
+    place: string | null;
+    company: string | null;
+    catalog: SmissCatalogRow | null;
+  }
+): Promise<ReceiveResult> {
+  const { code, qty, source_from, place, company, catalog } = args;
+  const quantityBefore = Number(existing.quantity || 0);
+  const newQty = quantityBefore + qty;
+  const commentAppend = `Intrare +${qty} de la: ${source_from}`;
+  const prevComments = (existing.comments as string | null) || '';
+  const comments = prevComments ? `${prevComments} | ${commentAppend}` : commentAppend;
+
+  const sets = [
+    'quantity = ?',
+    "source_from = COALESCE(NULLIF(TRIM(source_from), ''), ?)",
+    "place = COALESCE(NULLIF(TRIM(place), ''), ?)",
+    "company = COALESCE(NULLIF(TRIM(company), ''), ?)",
+    'comments = ?',
+  ];
+  const params: unknown[] = [newQty, source_from, place, company, comments];
+
+  const catalogUpgrade = Boolean(catalog && Number(existing.is_uncatalogued || 0) === 1);
+  if (catalog && catalogUpgrade) {
+    sets.push(
+      'mijloc_fix = COALESCE(mijloc_fix, ?)',
+      'mijloc_fix_orig = COALESCE(mijloc_fix_orig, ?)',
+      'name2 = COALESCE(name2, ?)',
+      'description = COALESCE(description, ?)',
+      'is_uncatalogued = 0'
+    );
+    params.push(
+      catalog.mijloc_fix || null,
+      catalog.mijloc_fix_orig || null,
+      catalog.denumire2 || null,
+      catalog.description || null
+    );
+    if (isPlaceholderName(existing) && catalog.denumire1) {
+      sets.push('name = ?');
+      params.push(catalog.denumire1);
+    }
   }
 
-  for (const v of candidates) {
-    const row = await db
+  await db.batch([
+    db
       .prepare(
-        `SELECT * FROM stock_items
-         WHERE barcode = ? OR mijloc_fix = ? OR mijloc_fix_orig = ?
-         LIMIT 1`
+        `UPDATE stock_items SET ${sets.join(', ')}, updated_at = datetime('now') WHERE id = ?`
       )
-      .bind(v, v, v)
-      .first<StockItemRow>();
-    if (row) return row;
-  }
-  return null;
+      .bind(...params, existing.id),
+    db
+      .prepare(
+        `INSERT INTO stock_movements
+         (stock_item_id, ticket_id, barcode_scanned, delta, reason, quantity_after, created_by)
+         VALUES (?, NULL, ?, ?, 'RECEIVE', ?, ?)`
+      )
+      .bind(existing.id, code, qty, newQty, user.username),
+  ]);
+
+  const existingCompany = String(existing.company ?? '').trim() || null;
+  const companyDiffers = Boolean(
+    company && existingCompany && company.toLowerCase() !== existingCompany.toLowerCase()
+  );
+
+  await logActivity(db, user.username, user.role, 'STOCK_RECEIVE', {
+    stock_item_id: existing.id,
+    code,
+    quantity: qty,
+    quantity_after: newQty,
+    source_from,
+    catalogHit: Boolean(catalog),
+    updated: true,
+    ...(companyDiffers ? { company_requested: company, company_kept: existingCompany } : {}),
+    ...(catalogUpgrade ? { catalog_completed: catalog?.mijloc_fix ?? null } : {}),
+  });
+
+  const item = await db
+    .prepare(`SELECT * FROM stock_items WHERE id = ?`)
+    .bind(existing.id)
+    .first<StockItemRow>();
+  return {
+    item: item!,
+    catalogHit: Boolean(catalog),
+    stockHit: true,
+    quantityBefore,
+    ...(companyDiffers ? { companyRequested: company } : {}),
+  };
 }
 
 export async function receiveStock(
@@ -126,7 +323,7 @@ export async function receiveStock(
     place?: string;
     company?: string;
   }
-): Promise<{ item: StockItemRow; catalogHit: boolean }> {
+): Promise<ReceiveResult> {
   const code = normalizeScanCode(body.code);
   if (!code) {
     const err = new Error('Cod obligatoriu') as Error & { status?: number };
@@ -147,53 +344,18 @@ export async function receiveStock(
 
   const catalog = await lookupCatalog(db, code);
   const catalogHit = Boolean(catalog);
-  const existing = await findExistingStock(db, code, catalog);
+  const place = body.place?.trim() || null;
+  const existing = await findStockByCode(db, code, catalog);
 
   if (existing) {
-    const newQty = Number(existing.quantity || 0) + qty;
-    const place = body.place?.trim() || (existing.place as string | null) || null;
-    const company = body.company?.trim() || (existing.company as string | null) || null;
-    const commentAppend = `Intrare +${qty} de la: ${source_from}`;
-    const prevComments = (existing.comments as string | null) || '';
-    const comments = prevComments
-      ? `${prevComments} | ${commentAppend}`
-      : commentAppend;
-
-    await db
-      .prepare(
-        `UPDATE stock_items
-         SET quantity = ?, source_from = ?, place = COALESCE(?, place),
-             company = COALESCE(?, company), comments = ?,
-             updated_at = datetime('now')
-         WHERE id = ?`
-      )
-      .bind(newQty, source_from, place, company, comments, existing.id)
-      .run();
-
-    await db
-      .prepare(
-        `INSERT INTO stock_movements
-         (stock_item_id, ticket_id, barcode_scanned, delta, reason, quantity_after, created_by)
-         VALUES (?, NULL, ?, ?, 'RECEIVE', ?, ?)`
-      )
-      .bind(existing.id, code, qty, newQty, user.username)
-      .run();
-
-    await logActivity(db, user.username, user.role, 'STOCK_RECEIVE', {
-      stock_item_id: existing.id,
+    return addToExisting(db, user, existing, {
       code,
-      quantity: qty,
-      quantity_after: newQty,
+      qty,
       source_from,
-      catalogHit,
-      updated: true,
+      place,
+      company: body.company?.trim() || null,
+      catalog,
     });
-
-    const item = await db
-      .prepare(`SELECT * FROM stock_items WHERE id = ?`)
-      .bind(existing.id)
-      .first<StockItemRow>();
-    return { item: item!, catalogHit };
   }
 
   const mijloc_fix = catalog?.mijloc_fix || null;
@@ -203,12 +365,10 @@ export async function receiveStock(
   const description = catalog?.description || null;
   const is_uncatalogued = catalogHit ? 0 : 1;
   const sku = `MF-${mijloc_fix || code}`;
-  const place = body.place?.trim() || null;
   const company = body.company?.trim() || user.company || null;
 
-  let info;
-  try {
-    info = await db
+  const insert = (skuValue: string) =>
+    db
       .prepare(
         `INSERT INTO stock_items
          (sku, barcode, name, company, place, quantity, comments,
@@ -216,7 +376,7 @@ export async function receiveStock(
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .bind(
-        sku,
+        skuValue,
         code,
         name,
         company,
@@ -231,37 +391,27 @@ export async function receiveStock(
         is_uncatalogued
       )
       .run();
+
+  let info;
+  try {
+    info = await insert(sku);
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
-    // SKU collision — retry with unique suffix
-    if (/UNIQUE/i.test(msg)) {
-      const sku2 = `MF-${mijloc_fix || code}-${Date.now().toString(36)}`;
-      info = await db
-        .prepare(
-          `INSERT INTO stock_items
-           (sku, barcode, name, company, place, quantity, comments,
-            mijloc_fix, mijloc_fix_orig, name2, description, source_from, is_uncatalogued)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        )
-        .bind(
-          sku2,
-          code,
-          name,
-          company,
-          place,
-          qty,
-          `Intrare de la: ${source_from}`,
-          mijloc_fix,
-          mijloc_fix_orig,
-          name2,
-          description,
-          source_from,
-          is_uncatalogued
-        )
-        .run();
-    } else {
-      throw e;
+    if (!/UNIQUE/i.test(msg)) throw e;
+    // Same code saved meanwhile (e.g. two phones) → add to that line instead of failing.
+    const again = await findStockByCode(db, code, catalog);
+    if (again) {
+      return addToExisting(db, user, again, {
+        code,
+        qty,
+        source_from,
+        place,
+        company: body.company?.trim() || null,
+        catalog,
+      });
     }
+    // SKU collision only — retry with unique suffix
+    info = await insert(`MF-${mijloc_fix || code}-${Date.now().toString(36)}`);
   }
 
   const id = Number(info.meta.last_row_id);
@@ -288,5 +438,5 @@ export async function receiveStock(
     .prepare(`SELECT * FROM stock_items WHERE id = ?`)
     .bind(id)
     .first<StockItemRow>();
-  return { item: item!, catalogHit };
+  return { item: item!, catalogHit, stockHit: false, quantityBefore: 0 };
 }

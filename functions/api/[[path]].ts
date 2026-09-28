@@ -19,7 +19,13 @@ import {
   scanPreview,
   ticketAction,
 } from '../_lib/tickets';
-import { lookupCatalog, normalizeScanCode, receiveStock } from '../_lib/catalog';
+import {
+  findStockByCode,
+  lookupCatalog,
+  normalizeScanCode,
+  receiveStock,
+  stockSummary,
+} from '../_lib/catalog';
 import { canManageStock, deleteStockItem, updateStockItem } from '../_lib/stock';
 import { exportMovements, exportOptions, exportStock, exportTickets } from '../_lib/exports';
 import {
@@ -288,8 +294,20 @@ async function handleCatalog(ctx: Ctx, parts: string[], method: string): Promise
     if (!code) return error('Parametrul code este obligatoriu');
     try {
       const item = await lookupCatalog(env.DB, code);
-      if (!item) return json({ found: false, code });
-      return json({ found: true, item, code });
+      // Also look in our own stock (codes saved manually are not in the SMISS catalog).
+      // user1 only sees stock of their own company.
+      const stockRow = missingCompany(auth.user)
+        ? null
+        : await findStockByCode(env.DB, code, item, stockCompanyScope(auth.user));
+      const stock = stockRow ? stockSummary(stockRow) : null;
+      // found = found in the SMISS catalog (unchanged meaning); inStock = already in stock
+      return json({
+        found: Boolean(item),
+        ...(item ? { item } : {}),
+        inStock: Boolean(stock),
+        stock,
+        code,
+      });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       if (/no such table/i.test(msg)) {
