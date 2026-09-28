@@ -3,6 +3,7 @@ import { api, ApiError } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { downloadCsv, toCsv, type ExportCell, type ExportColumn } from '../lib/csv';
 import { PERIOD_PRESETS, presetRange, type PeriodPreset } from '../lib/dates';
+import { companyLabel } from '../lib/labels';
 
 type Kind = 'stock' | 'movements' | 'tickets';
 
@@ -193,7 +194,7 @@ export default function Exports() {
           <option value={NO_COMPANY}>(fără firmă)</option>
           {options.companies.map((c) => (
             <option key={c} value={c}>
-              {c}
+              {companyLabel(c)}
             </option>
           ))}
         </select>

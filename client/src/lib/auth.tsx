@@ -81,6 +81,6 @@ export const ROLE_LABELS: Record<Role, string> = {
   admin: 'Admin',
   user1: 'Client',
   user2: 'Magazie',
-  user3: 'Curier',
+  user3: 'Șofer',
   user4: 'Retur',
 };

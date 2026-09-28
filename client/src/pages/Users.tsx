@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { api, ApiError } from '../lib/api';
 import { useAuth, ROLE_LABELS, type Role } from '../lib/auth';
 import { useCompanies } from '../lib/companies';
+import { companyLabel } from '../lib/labels';
 
 interface U {
   id: number;
@@ -189,7 +190,7 @@ export default function Users() {
                     ) : missing ? (
                       <span className="text-amber-700 font-medium">lipsă — setează firma</span>
                     ) : (
-                      u.company || '—'
+                      companyLabel(u.company) || '—'
                     )}
                   </td>
                   <td className="px-3 py-2">

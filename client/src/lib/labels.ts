@@ -65,3 +65,16 @@ export function historyNote(details: string | null | undefined): string {
   }
   return text;
 }
+
+/**
+ * Numele afișat al unei firme. Unele conturi au în baza de date firma „Courier”
+ * (contul șoferului); pe ecran apare „Șofer”. Valoarea salvată rămâne neschimbată.
+ */
+const COMPANY_DISPLAY_LABELS: Record<string, string> = {
+  courier: 'Șofer',
+};
+
+export function companyLabel(company: string | null | undefined): string {
+  const name = String(company ?? '').trim();
+  return COMPANY_DISPLAY_LABELS[name.toLowerCase()] ?? name;
+}

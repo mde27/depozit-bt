@@ -563,7 +563,9 @@ export async function ticketAction(
     }
 
     case 'DELIVER': {
-      if (!can(user, 'user3')) throw Object.assign(new Error('Doar user3'), { status: 403 });
+      if (!can(user, 'user3')) {
+        throw Object.assign(new Error('Doar șoferul poate confirma livrarea'), { status: 403 });
+      }
       if (ticket.status !== 'SENT') {
         throw Object.assign(new Error('Status trebuie să fie SENT'), { status: 400 });
       }
