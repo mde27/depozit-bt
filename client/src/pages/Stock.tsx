@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, ApiError } from '../lib/api';
+import { provenientaLabel } from '../lib/labels';
 import { useAuth } from '../lib/auth';
 import { useCompanies } from '../lib/companies';
 import type { StockItem } from '../lib/types';
@@ -165,6 +166,11 @@ export default function Stock() {
                     )}
                     {it.name2 ? (
                       <div className="text-xs font-normal text-slate-500">{it.name2}</div>
+                    ) : null}
+                    {provenientaLabel(it.provenienta) ? (
+                      <div className="text-xs font-normal text-slate-600">
+                        {provenientaLabel(it.provenienta)}
+                      </div>
                     ) : null}
                   </td>
                   <td className="px-3 py-2 text-xs text-slate-700">{it.source_from || '—'}</td>

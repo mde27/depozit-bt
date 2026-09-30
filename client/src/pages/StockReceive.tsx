@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import BarcodeScanner from '../components/BarcodeScanner';
 import { api, ApiError } from '../lib/api';
+import { provenientaLabel } from '../lib/labels';
 import { formatRoTime } from '../lib/time';
 import { useAuth } from '../lib/auth';
 import { useCompanies } from '../lib/companies';
@@ -26,6 +27,7 @@ type CatalogItem = {
   denumire2: string | null;
   description: string | null;
   numar_serial: string | null;
+  locatie?: string | null;
 };
 
 /** Existing stock line for a scanned code (returned by the lookup). */
@@ -730,6 +732,11 @@ export default function StockReceive() {
                   : ''}
                 {` · Cod scanat: ${lookup.code}`}
               </div>
+              {provenientaLabel(lookup.item.locatie) && (
+                <div className="text-sm text-success-950 pt-1">
+                  {provenientaLabel(lookup.item.locatie)}
+                </div>
+              )}
             </>
           ) : (
             lookup.stock && (

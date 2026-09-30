@@ -112,6 +112,33 @@ async function handleAuth(ctx: Ctx, parts: string[], method: string): Promise<Re
   return error('Not found', 404);
 }
 
+async function listStockWithProvenienta(
+  db: D1Database,
+  scope: { sql: string; params: unknown[] },
+  place?: string
+): Promise<unknown[]> {
+  const params = place ? [place, ...scope.params] : [...scope.params];
+  const where = place ? `s.place = ? AND ${scope.sql}` : scope.sql;
+  const joined = `SELECT s.*, c.locatie AS provenienta
+       FROM stock_items s
+       LEFT JOIN smiss_catalog c ON c.mijloc_fix = s.mijloc_fix
+       WHERE ${where}
+       ORDER BY s.name`;
+  const plain = place
+    ? `SELECT * FROM stock_items WHERE place = ? AND ${scope.sql} ORDER BY name`
+    : `SELECT * FROM stock_items WHERE ${scope.sql} ORDER BY name`;
+  try {
+    const { results } = await db.prepare(joined).bind(...params).all();
+    return results || [];
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    // Catalog table or locatie column not migrated yet — stock list still works.
+    if (!/no such (table|column)/i.test(msg)) throw e;
+    const { results } = await db.prepare(plain).bind(...params).all();
+    return results || [];
+  }
+}
+
 async function handleStock(ctx: Ctx, parts: string[], method: string): Promise<Response> {
   const { request, env } = ctx;
   const auth = await requireUser(request, env);
@@ -212,15 +239,7 @@ async function handleStock(ctx: Ctx, parts: string[], method: string): Promise<R
   if (method === 'GET' && parts.length === 0) {
     if (missingCompany(auth.user)) return json({ items: [] });
     const place = new URL(request.url).searchParams.get('place')?.trim();
-    const { results: items } = place
-      ? await env.DB.prepare(
-          `SELECT * FROM stock_items WHERE place = ? AND ${scope.sql} ORDER BY name`
-        )
-          .bind(place, ...scope.params)
-          .all()
-      : await env.DB.prepare(`SELECT * FROM stock_items WHERE ${scope.sql} ORDER BY name`)
-          .bind(...scope.params)
-          .all();
+    const items = await listStockWithProvenienta(env.DB, scope, place);
     return json({ items });
   }
 

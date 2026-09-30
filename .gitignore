@@ -18,3 +18,6 @@ smiss-import/
 migrations/smiss-seed/seed_*.sql
 migrations/smiss-seed/*.jsonl
 scripts/_*.mjs
+
+# Generated LOCATIE backfill (scripts/backfill-smiss-locatie.mjs)
+scripts/backfill-locatie-sql/

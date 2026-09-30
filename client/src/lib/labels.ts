@@ -78,3 +78,13 @@ export function companyLabel(company: string | null | undefined): string {
   const name = String(company ?? '').trim();
   return COMPANY_DISPLAY_LABELS[name.toLowerCase()] ?? name;
 }
+
+/**
+ * Locația SMISS (coloana LOCATIE) — de unde este înregistrat articolul.
+ * Gol dacă nu e completată. Nu schimba codul; doar textul de pe ecran.
+ */
+export function provenientaLabel(value: string | null | undefined): string | null {
+  const v = String(value ?? '').trim();
+  if (!v) return null;
+  return `Proveniență: ${v}`;
+}

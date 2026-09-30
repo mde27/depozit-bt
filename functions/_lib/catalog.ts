@@ -10,6 +10,8 @@ export type SmissCatalogRow = {
   description: string | null;
   numar_serial: string | null;
   source_report: string | null;
+  /** SMISS column LOCATIE (where the asset was registered). Null until migration 0004. */
+  locatie: string | null;
 };
 
 export type StockItemRow = Record<string, unknown> & {
@@ -77,8 +79,40 @@ export function codeVariants(code: string): string[] {
   return list;
 }
 
-const CATALOG_COLUMNS = `mijloc_fix, mijloc_fix_orig, clasa, denumire1, denumire2,
+const CATALOG_COLUMNS_BASE = `mijloc_fix, mijloc_fix_orig, clasa, denumire1, denumire2,
                 description, numar_serial, source_report`;
+
+/** LOCATIE is added by migrations/0004_smiss_locatie.sql. Lookups still work before it is applied. */
+const CATALOG_COLUMNS = `${CATALOG_COLUMNS_BASE}, locatie`;
+
+function missingLocatieColumn(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : String(e);
+  return /no such column/i.test(msg) && /locatie/i.test(msg);
+}
+
+async function selectCatalog(
+  db: D1Database,
+  tail: string,
+  binds: unknown[],
+  mode: 'all' | 'first'
+): Promise<SmissCatalogRow[]> {
+  const run = async (columns: string) => {
+    const stmt = db.prepare(`SELECT ${columns} ${tail}`).bind(...binds);
+    if (mode === 'first') {
+      const row = await stmt.first<SmissCatalogRow>();
+      return row ? [row] : [];
+    }
+    const { results } = await stmt.all<SmissCatalogRow>();
+    return results || [];
+  };
+  try {
+    return await run(CATALOG_COLUMNS);
+  } catch (e) {
+    if (!missingLocatieColumn(e)) throw e;
+    const rows = await run(CATALOG_COLUMNS_BASE);
+    return rows.map((r) => ({ ...r, locatie: null }));
+  }
+}
 
 function placeholders(n: number): string {
   return Array.from({ length: n }, () => '?').join(', ');
@@ -93,16 +127,14 @@ export async function lookupCatalog(
 
   // One indexed query for all spellings (MIJLOC_FIX is the PK, ORIG has idx_smiss_orig).
   const ph = placeholders(variants.length);
-  const { results } = await db
-    .prepare(
-      `SELECT ${CATALOG_COLUMNS}
-       FROM smiss_catalog
+  const rows = await selectCatalog(
+    db,
+    `FROM smiss_catalog
        WHERE mijloc_fix IN (${ph}) OR mijloc_fix_orig IN (${ph})
-       LIMIT 50`
-    )
-    .bind(...variants, ...variants)
-    .all<SmissCatalogRow>();
-  const rows = results || [];
+       LIMIT 50`,
+    [...variants, ...variants],
+    'all'
+  );
   if (rows.length) {
     // Most specific spelling wins; for the same spelling MIJLOC_FIX beats ORIG.
     for (const v of variants) {
@@ -119,15 +151,14 @@ export async function lookupCatalog(
   const base = normalizeScanCode(code);
   const stripped = base.replace(/^0+/, '') || '0';
   if (stripped && stripped !== base) {
-    const row = await db
-      .prepare(
-        `SELECT ${CATALOG_COLUMNS}
-         FROM smiss_catalog
+    const [row] = await selectCatalog(
+      db,
+      `FROM smiss_catalog
          WHERE LTRIM(mijloc_fix, '0') = ? OR LTRIM(IFNULL(mijloc_fix_orig, ''), '0') = ?
-         LIMIT 1`
-      )
-      .bind(stripped, stripped)
-      .first<SmissCatalogRow>();
+         LIMIT 1`,
+      [stripped, stripped],
+      'first'
+    );
     if (row) return row;
   }
 

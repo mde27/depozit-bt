@@ -81,6 +81,8 @@ export interface StockItem {
   description?: string | null;
   source_from?: string | null;
   is_uncatalogued?: number | boolean | null;
+  /** SMISS LOCATIE, joined from the catalog (not the warehouse place). */
+  provenienta?: string | null;
 }
 
 export interface ScanLine {
