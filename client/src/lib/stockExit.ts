@@ -13,6 +13,8 @@ export interface DraftLine {
   /** câte bucăți erau în stoc la scanare */
   available: number;
   quantity: number;
+  /** notă opțională pentru acest articol (apare pe bon) */
+  observatii?: string;
 }
 
 export interface ExitDraft {
@@ -97,6 +99,14 @@ export function setLineQuantity(draft: ExitDraft, stockItemId: number, qty: numb
   };
 }
 
+/** Notă pe o linie (ex. ce este un articol fără cod BT). */
+export function setLineNote(draft: ExitDraft, stockItemId: number, note: string): ExitDraft {
+  return {
+    ...draft,
+    lines: draft.lines.map((l) => (l.stock_item_id === stockItemId ? { ...l, observatii: note } : l)),
+  };
+}
+
 export function removeLine(draft: ExitDraft, stockItemId: number): ExitDraft {
   return { ...draft, lines: draft.lines.filter((l) => l.stock_item_id !== stockItemId) };
 }
@@ -129,6 +139,7 @@ export function draftPayload(draft: ExitDraft) {
       stock_item_id: l.stock_item_id,
       code: l.code,
       quantity: l.quantity,
+      ...(l.observatii?.trim() ? { observatii: l.observatii.trim() } : {}),
     })),
   };
 }

@@ -103,6 +103,7 @@ export interface StockExitItem {
   mijloc_fix: string | null;
   quantity: number;
   quantity_after: number | null;
+  observatii?: string | null;
 }
 
 export interface StockExit {

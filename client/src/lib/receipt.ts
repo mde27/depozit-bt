@@ -12,7 +12,7 @@ export interface ReceiptExit {
   destinatie: string;
   observatii: string | null;
   created_by?: string;
-  items: { name: string; mijloc_fix: string | null; barcode: string | null; quantity: number }[];
+  items: { name: string; mijloc_fix: string | null; barcode: string | null; quantity: number; observatii?: string | null }[];
 }
 
 export function receiptFileName(code: string): string {
@@ -23,7 +23,7 @@ export function receiptFileName(code: string): string {
 export function receiptRows(exit: ReceiptExit) {
   const rows = exit.items.map((it, i) => [
     String(i + 1),
-    it.name || '',
+    it.observatii?.trim() ? `${it.name || ''}\nObs.: ${it.observatii.trim()}` : it.name || '',
     it.mijloc_fix || '—',
     it.barcode || '—',
     String(it.quantity),
@@ -76,7 +76,12 @@ export async function buildReceiptDocx(exit: ReceiptExit): Promise<Blob | Uint8A
       borders,
       shading: o.shade ? { fill: 'E2E8F0', color: 'auto', type: d.ShadingType.CLEAR } : undefined,
       margins: { top: 50, bottom: 50, left: 80, right: 80 },
-      children: [p([run(text, { bold: o.bold, size: 19 })], { after: 0, align: o.align })],
+      // al doilea rând („Obs.: …”) = nota articolului, scrisă cursiv
+      children: text.split('\n').map((t, k) =>
+        k === 0
+          ? p([run(t, { bold: o.bold, size: 19 })], { after: 0, align: o.align })
+          : p([new TextRun({ text: t, font: FONT, size: 18, italics: true, color: '334155' })], { after: 0, align: o.align })
+      ),
     });
 
   const { rows, total } = receiptRows(exit);
@@ -143,7 +148,25 @@ export async function buildReceiptDocx(exit: ReceiptExit): Promise<Blob | Uint8A
           info('Predat de', exit.predat_de),
           info('Predat către', exit.predat_catre),
           info('Destinație', exit.destinatie),
-          info('Observații', exit.observatii || ''),
+          ...(exit.observatii?.trim()
+            ? [
+                new Table({
+                  width: { size: 100, type: WidthType.PERCENTAGE },
+                  rows: [
+                    new TableRow({
+                      children: [
+                        new TableCell({
+                          borders,
+                          shading: { fill: 'FEF3C7', color: 'auto', type: d.ShadingType.CLEAR },
+                          margins: { top: 80, bottom: 80, left: 120, right: 120 },
+                          children: [p([run('Observații: ', { bold: true }), run(exit.observatii.trim())], { after: 0 })],
+                        }),
+                      ],
+                    }),
+                  ],
+                }),
+              ]
+            : []),
           p([run('')], { after: 120 }),
           new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [header, ...body, totalRow] }),
           p([run(`Subsemnații confirmăm predarea și primirea articolelor de mai sus, în total ${total} buc.`)], {

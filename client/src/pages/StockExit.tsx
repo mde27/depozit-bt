@@ -24,6 +24,7 @@ import {
   loadDraft,
   removeLine,
   saveDraft,
+  setLineNote,
   setLineQuantity,
   type ExitDraft,
 } from '../lib/stockExit';
@@ -263,6 +264,7 @@ export default function StockExit() {
                 <span className="min-w-0 break-words">
                   {it.name}
                   <span className="block text-xs text-slate-500 font-mono">{it.barcode}</span>
+                  {it.observatii && <span className="block text-xs italic text-slate-600">Obs.: {it.observatii}</span>}
                 </span>
                 <span className="font-semibold tabular-nums whitespace-nowrap">{it.quantity} buc.</span>
               </li>
@@ -428,6 +430,15 @@ export default function StockExit() {
                     </button>
                     <span className="text-sm text-slate-500">buc.</span>
                   </div>
+                  <input
+                    className="mt-2 ml-9 w-[calc(100%-2.25rem)] border border-slate-300 rounded-lg px-3 py-2 text-base sm:text-sm"
+                    value={l.observatii ?? ''}
+                    onChange={(e) => setDraft(setLineNote(draftRef.current, l.stock_item_id, e.target.value))}
+                    placeholder="Notă pe bon (opțional), ex. ce este dacă nu are cod BT"
+                    aria-label={`Notă pentru ${l.name}`}
+                    maxLength={200}
+                    disabled={submitting}
+                  />
                 </li>
               ))}
             </ul>
@@ -479,7 +490,7 @@ export default function StockExit() {
         {field('predat_catre', 'Predat către', 'numele persoanei care primește')}
         {field('destinatie', 'Destinație', 'unde merg articolele')}
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Observații</label>
+          <label className="block text-xs font-medium text-slate-600 mb-1">Observații (apar pe bon)</label>
           <textarea
             className={inputCls}
             rows={2}
@@ -537,7 +548,12 @@ export default function StockExit() {
               {draft.lines.map((l, i) => (
                 <li key={l.stock_item_id} className="py-2 flex gap-2 text-sm">
                   <span className="font-bold tabular-nums w-6 shrink-0">{i + 1}.</span>
-                  <span className="min-w-0 flex-1 break-words">{l.name}</span>
+                  <span className="min-w-0 flex-1 break-words">
+                    {l.name}
+                    {l.observatii?.trim() && (
+                      <span className="block text-xs italic text-slate-600">Obs.: {l.observatii.trim()}</span>
+                    )}
+                  </span>
                   <span className="font-semibold tabular-nums whitespace-nowrap">{l.quantity} buc.</span>
                 </li>
               ))}

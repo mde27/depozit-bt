@@ -97,3 +97,15 @@ describe('new exit after confirm', () => {
     expect(emptyDraft('Ida').key).not.toBe(d.key);
   });
 });
+
+describe('notă pe articol', () => {
+  it('is kept per line and sent only when filled', async () => {
+    const { setLineNote } = await import('./stockExit');
+    let d = addScan(emptyDraft('Ida'), 'A1', { id: 1, name: 'A', mijloc_fix: null, quantity: 2 }).draft;
+    d = addScan(d, 'B1', { id: 2, name: 'B', mijloc_fix: null, quantity: 2 }).draft;
+    d = setLineNote(d, 1, '  Scaun Miro fără cod BT ');
+    const items = draftPayload({ ...d, predat_catre: 'x', destinatie: 'y' }).items;
+    expect(items.find((i) => i.stock_item_id === 1)).toMatchObject({ observatii: 'Scaun Miro fără cod BT' });
+    expect(items.find((i) => i.stock_item_id === 2)).not.toHaveProperty('observatii');
+  });
+});

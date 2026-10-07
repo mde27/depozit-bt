@@ -106,6 +106,7 @@ export default function StockExitDetail() {
                       <Link to={`/stock/${it.stock_item_id}/movements`} className="hover:underline">
                         {it.name}
                       </Link>
+                      {it.observatii && <div className="text-xs italic text-slate-600">Obs.: {it.observatii}</div>}
                     </td>
                     <td className="px-3 py-2 font-mono text-xs">{it.mijloc_fix || '—'}</td>
                     <td className="px-3 py-2 font-mono text-xs">{it.barcode || '—'}</td>

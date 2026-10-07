@@ -36,3 +36,30 @@ describe('receipt', () => {
     expect(xml).toContain('Ion Pop');
   });
 });
+
+describe('observații pe bon', () => {
+  const ex = {
+    code: 'IES-20261007-001',
+    created_at: '2026-10-07 12:26:05',
+    predat_de: 'Mutantii',
+    predat_catre: 'Rares Herman',
+    destinatie: 'Traian Mosoiu Corp B',
+    observatii: 'Predare parțială',
+    items: [
+      { name: 'NECUNOSCUT 1214275', mijloc_fix: null, barcode: '1214275', quantity: 1, observatii: 'Scaun Miro fără cod BT' },
+      { name: 'SCAUN OPERATIONAL MIRO', mijloc_fix: null, barcode: '1104826', quantity: 1, observatii: null },
+    ],
+  };
+  it('prints the item note under the name', () => {
+    const { rows } = receiptRows(ex);
+    expect(rows[0][1]).toBe('NECUNOSCUT 1214275\nObs.: Scaun Miro fără cod BT');
+    expect(rows[1][1]).toBe('SCAUN OPERATIONAL MIRO');
+  });
+  it('builds a docx containing both notes', async () => {
+    const buf = (await buildReceiptDocx(ex)) as Uint8Array;
+    const JSZip = (await import('jszip')).default;
+    const xml = await (await JSZip.loadAsync(buf)).file('word/document.xml')!.async('string');
+    expect(xml).toContain('Predare parțială');
+    expect(xml).toContain('Obs.: Scaun Miro fără cod BT');
+  });
+});

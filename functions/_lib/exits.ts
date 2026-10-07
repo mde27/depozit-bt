@@ -27,7 +27,7 @@ export type ExitRow = {
   finalized_at: string;
 };
 
-export type ExitLineInput = { stock_item_id?: number; code?: string; quantity?: number };
+export type ExitLineInput = { stock_item_id?: number; code?: string; quantity?: number; observatii?: string };
 export type ExitBody = {
   predat_de?: string;
   predat_catre?: string;
@@ -60,7 +60,7 @@ export async function loadExit(db: D1Database, id: number) {
   if (!exit) return null;
   const { results } = await db
     .prepare(
-      `SELECT id, stock_item_id, barcode, name, mijloc_fix, quantity, quantity_after
+      `SELECT id, stock_item_id, barcode, name, mijloc_fix, quantity, quantity_after, observatii
        FROM stock_exit_items WHERE exit_id = ? ORDER BY id`
     )
     .bind(id)
@@ -120,11 +120,12 @@ export async function createExit(db: D1Database, user: AuthUser, body: ExitBody)
   if (lines.length > MAX_LINES) fail(`Prea multe linii într-o ieșire (maximum ${MAX_LINES}).`);
 
   // Rezolvă fiecare linie la un articol din stoc și adună cantitățile pe articol.
-  const merged = new Map<number, { item: StockItemRow; qty: number; scanned: string }>();
+  const merged = new Map<number, { item: StockItemRow; qty: number; scanned: string; note: string | null }>();
   const errors: string[] = [];
   for (const line of lines) {
     const qty = Number(line.quantity ?? 1);
     const code = line.code ? normalizeScanCode(String(line.code)) : '';
+    const note = text(line.observatii, 'Observații articol', false);
     if (!Number.isInteger(qty) || qty <= 0) {
       errors.push(`Cantitate invalidă pentru ${code || 'un articol'}.`);
       continue;
@@ -149,8 +150,10 @@ export async function createExit(db: D1Database, user: AuthUser, body: ExitBody)
       continue;
     }
     const prev = merged.get(item.id);
-    if (prev) prev.qty += qty;
-    else merged.set(item.id, { item, qty, scanned: code || String(item.barcode || item.sku) });
+    if (prev) {
+      prev.qty += qty;
+      if (note && note !== prev.note) prev.note = prev.note ? `${prev.note}; ${note}` : note;
+    } else merged.set(item.id, { item, qty, scanned: code || String(item.barcode || item.sku), note });
   }
   for (const { item, qty } of merged.values()) {
     const have = Number(item.quantity || 0);
@@ -185,7 +188,7 @@ export async function createExit(db: D1Database, user: AuthUser, body: ExitBody)
         )
         .bind(code, predatDe, predatCatre, destinatie, observatii, clientKey, user.id, user.username),
     ];
-    for (const { item, qty, scanned } of merged.values()) {
+    for (const { item, qty, scanned, note } of merged.values()) {
       stmts.push(
         // quantity_after = NULL dacă nu mai e destul stoc → NOT NULL eșuează → rollback
         db
@@ -205,10 +208,10 @@ export async function createExit(db: D1Database, user: AuthUser, body: ExitBody)
           .bind(qty, item.id, qty),
         db
           .prepare(
-            `INSERT INTO stock_exit_items (exit_id, stock_item_id, barcode, name, mijloc_fix, quantity, quantity_after)
-             VALUES (${exitIdSql}, ?, ?, ?, ?, ?, (SELECT quantity FROM stock_items WHERE id = ?))`
+            `INSERT INTO stock_exit_items (exit_id, stock_item_id, barcode, name, mijloc_fix, quantity, quantity_after, observatii)
+             VALUES (${exitIdSql}, ?, ?, ?, ?, ?, (SELECT quantity FROM stock_items WHERE id = ?), ?)`
           )
-          .bind(code, item.id, scanned, item.name, item.mijloc_fix ?? null, qty, item.id)
+          .bind(code, item.id, scanned, item.name, item.mijloc_fix ?? null, qty, item.id, note)
       );
     }
     const details = {
@@ -224,6 +227,7 @@ export async function createExit(db: D1Database, user: AuthUser, body: ExitBody)
         cod: l.scanned,
         mijloc_fix: l.item.mijloc_fix ?? null,
         cantitate: l.qty,
+        observatii: l.note,
         stoc_inainte: Number(l.item.quantity || 0),
       })),
     };
