@@ -89,3 +89,11 @@ describe('stock exit draft', () => {
     expect(loadDraft(storage)).toBeNull();
   });
 });
+
+describe('new exit after confirm', () => {
+  it('starts with no recipient, destination or lines (only Predat de)', () => {
+    const d = emptyDraft('Ida');
+    expect(d).toMatchObject({ predat_de: 'Ida', predat_catre: '', destinatie: '', observatii: '', lines: [] });
+    expect(emptyDraft('Ida').key).not.toBe(d.key);
+  });
+});

@@ -4,6 +4,7 @@ import { useAuth } from '../lib/auth';
 import { downloadCsv, toCsv, type ExportCell, type ExportColumn } from '../lib/csv';
 import { PERIOD_PRESETS, presetRange, type PeriodPreset } from '../lib/dates';
 import { companyLabel } from '../lib/labels';
+import SearchBox, { EmptySearch } from '../components/SearchBox';
 
 type Kind = 'stock' | 'movements' | 'tickets' | 'exits';
 
@@ -49,6 +50,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
     </div>
   );
 }
+
 
 export default function Exports() {
   const { user } = useAuth();
@@ -97,6 +99,7 @@ export default function Exports() {
       if (place) q.set('place', place);
       if (uncatalogued) q.set('uncatalogued', '1');
       if (inStock) q.set('in_stock', '1');
+      if (search.trim()) q.set('q', search.trim());
     }
     if (usesPeriod) {
       if (from) q.set('from', from);
@@ -308,6 +311,11 @@ export default function Exports() {
                 <input type="checkbox" checked={inStock} onChange={(e) => setInStock(e.target.checked)} />
                 Doar cu cantitate &gt; 0
               </label>
+              <div className="sm:col-span-2">
+                <Field label="Caută articol">
+                  <SearchBox value={search} onChange={setSearch} />
+                </Field>
+              </div>
             </>
           )}
 
@@ -325,13 +333,8 @@ export default function Exports() {
                 </select>
               </Field>
               <div className="sm:col-span-2">
-                <Field label="Caută articol (SKU, cod de bare, denumire, mijloc fix)">
-                  <input
-                    className={inputCls}
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="ex. palet / 5901234…"
-                  />
+                <Field label="Caută articol">
+                  <SearchBox value={search} onChange={setSearch} />
                 </Field>
               </div>
             </>
@@ -484,7 +487,11 @@ export default function Exports() {
               )}
             </>
           ) : (
-            <p className="text-sm text-slate-500">Nu există rânduri pentru filtrele alese.</p>
+            search.trim() && (kind === 'stock' || kind === 'movements') ? (
+              <EmptySearch query={search} />
+            ) : (
+              <p className="text-sm text-slate-500">Nu există rânduri pentru filtrele alese.</p>
+            )
           )}
         </section>
       )}

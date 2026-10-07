@@ -6,6 +6,7 @@ import {
   normalizeCompany,
   stockCompanyScope,
 } from './company';
+import { STOCK_SEARCH_COLUMNS, searchWhere } from './search';
 import { formatLocal, isIsoDate, localDayStartUtc, todayLocal } from './time';
 
 export const EXPORT_LIMIT = 50000;
@@ -161,6 +162,29 @@ function build(
 const s = (v: unknown): Cell => (v == null ? null : String(v));
 const n = (v: unknown): Cell => (v == null ? 0 : Number(v));
 
+// ---------------------------------------------------------------- Căutare
+
+/** Proveniența (LOCATIE din catalog), dacă tabelul / coloana există. */
+let hasCatalogLocatie: boolean | null = null;
+async function catalogHasLocatie(db: D1Database): Promise<boolean> {
+  if (hasCatalogLocatie !== null) return hasCatalogLocatie;
+  try {
+    await db.prepare(`SELECT locatie FROM smiss_catalog LIMIT 0`).all();
+    hasCatalogLocatie = true;
+  } catch {
+    hasCatalogLocatie = false;
+  }
+  return hasCatalogLocatie;
+}
+
+async function stockSearchWhere(db: D1Database, query: unknown, extra: string[] = []) {
+  const cols = [...STOCK_SEARCH_COLUMNS, ...extra];
+  if (await catalogHasLocatie(db)) {
+    cols.push(`(SELECT GROUP_CONCAT(c.locatie, ' ') FROM smiss_catalog c WHERE c.mijloc_fix = s.mijloc_fix)`);
+  }
+  return searchWhere(query, cols);
+}
+
 // ---------------------------------------------------------------- Stoc curent
 
 export async function exportStock(
@@ -176,6 +200,8 @@ export async function exportStock(
   else if (place) w.add(`TRIM(s.place) = ?`, place);
   if (q.get('uncatalogued') === '1') w.add(`s.is_uncatalogued = 1`);
   if (q.get('in_stock') === '1') w.add(`s.quantity > 0`);
+  const search = await stockSearchWhere(db, q.get('q'));
+  if (search) w.add(search.sql, ...search.params);
 
   const from = `FROM stock_items s ${w.sql}`;
   const { rows, truncated } = await runLimited(
@@ -237,20 +263,8 @@ export async function exportMovements(
   const { from, to } = addPeriodFilter(w, 'm.created_at', q);
   const reason = q.get('reason')?.trim();
   if (reason) w.add(`m.reason = ?`, reason);
-  const search = q.get('q')?.trim();
-  if (search) {
-    const like = `%${search}%`;
-    w.add(
-      `(s.sku LIKE ? OR s.barcode LIKE ? OR s.name LIKE ? OR s.mijloc_fix LIKE ?
-        OR s.mijloc_fix_orig LIKE ? OR m.barcode_scanned LIKE ?)`,
-      like,
-      like,
-      like,
-      like,
-      like,
-      like
-    );
-  }
+  const search = await stockSearchWhere(db, q.get('q'), ['m.barcode_scanned']);
+  if (search) w.add(search.sql, ...search.params);
 
   const fromSql = `FROM stock_movements m
      JOIN stock_items s ON s.id = m.stock_item_id

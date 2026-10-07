@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { formatRoTime } from '../lib/time';
+import SearchBox, { EmptySearch, useUrlSearch } from '../components/SearchBox';
+import { matchesFields, resultsLabel, searchTokens } from '../lib/stockSearch';
 
 interface Movement {
   id: number;
@@ -31,12 +33,32 @@ export default function StockMovements() {
   const [item, setItem] = useState<Record<string, unknown> | null>(null);
   const [movements, setMovements] = useState<Movement[]>([]);
   const [error, setError] = useState('');
+  const [loaded, setLoaded] = useState(false);
+  const [q, setQ] = useUrlSearch();
+  const shown = useMemo(() => {
+    const tokens = searchTokens(q);
+    if (!tokens.length) return movements;
+    return movements.filter((m) =>
+      matchesFields(
+        [
+          REASON_LABELS[m.reason] || m.reason,
+          m.created_by,
+          m.barcode_scanned,
+          m.ticket_code,
+          m.exit_code,
+          formatRoTime(m.created_at),
+        ],
+        tokens
+      )
+    );
+  }, [movements, q]);
 
   useEffect(() => {
     api<{ item: Record<string, unknown>; movements: Movement[] }>(`/api/stock/${id}/movements`)
       .then((d) => {
         setItem(d.item);
         setMovements(d.movements);
+        setLoaded(true);
       })
       .catch((e) => setError(e.message));
   }, [id]);
@@ -55,6 +77,17 @@ export default function StockMovements() {
         </p>
       )}
       {error && <p className="text-red-600">{error}</p>}
+      <div className="mb-3">
+        <SearchBox
+          value={q}
+          onChange={setQ}
+          placeholder="Caută după motiv, utilizator, cod scanat, tichet / bon, dată…"
+          count={loaded ? resultsLabel(q.trim() ? shown.length : movements.length) : null}
+        />
+      </div>
+      {loaded && q.trim() && shown.length === 0 ? (
+        <EmptySearch query={q} />
+      ) : (
       <div className="overflow-x-auto bg-white rounded-xl border border-slate-200">
         <table className="min-w-full text-sm">
           <thead className="bg-slate-50 text-left">
@@ -69,7 +102,7 @@ export default function StockMovements() {
             </tr>
           </thead>
           <tbody>
-            {movements.map((m) => (
+            {shown.map((m) => (
               <tr key={m.id} className="border-t border-slate-100">
                 <td className="px-3 py-2 whitespace-nowrap text-slate-500">{formatRoTime(m.created_at)}</td>
                 <td className="px-3 py-2 font-medium">{REASON_LABELS[m.reason] || m.reason}</td>
@@ -98,6 +131,7 @@ export default function StockMovements() {
           </tbody>
         </table>
       </div>
+      )}
     </div>
   );
 }

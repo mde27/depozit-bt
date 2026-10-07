@@ -1,8 +1,10 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError } from '../lib/api';
 import type { StockItem, Ticket, TicketInfo } from '../lib/types';
 import { useAuth } from '../lib/auth';
+import SearchBox from '../components/SearchBox';
+import { filterStock, resultsLabel } from '../lib/stockSearch';
 
 const emptyInfo: TicketInfo = {
   pm_client: '',
@@ -36,6 +38,8 @@ export default function Cerere() {
   const [fixComment, setFixComment] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [stockQ, setStockQ] = useState('');
+  const stockShown = useMemo(() => filterStock(stock, stockQ), [stock, stockQ]);
 
   useEffect(() => {
     api<{ items: StockItem[] }>('/api/stock').then((d) => setStock(d.items));
@@ -217,6 +221,17 @@ export default function Cerere() {
               + Adaugă linie
             </button>
           </div>
+          <SearchBox
+            value={stockQ}
+            onChange={setStockQ}
+            count={
+              stockQ.trim()
+                ? stockShown.length
+                  ? `${resultsLabel(stockShown.length)} în lista „Articol”`
+                  : `Niciun rezultat pentru „${stockQ.trim()}”`
+                : null
+            }
+          />
           {lines.map((line, i) => (
             <div key={i} className="flex flex-wrap gap-2 items-end">
               <div className="flex-1 min-w-[200px]">
@@ -228,7 +243,10 @@ export default function Cerere() {
                   onChange={(e) => setLine(i, { stock_item_id: Number(e.target.value) })}
                 >
                   <option value="">Alege…</option>
-                  {stock.map((s) => (
+                  {(stockShown.some((s) => s.id === line.stock_item_id)
+                    ? stockShown
+                    : [...stock.filter((s) => s.id === line.stock_item_id), ...stockShown]
+                  ).map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name} · {s.barcode} — stoc {s.quantity}
                     </option>

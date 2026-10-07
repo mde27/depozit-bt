@@ -56,6 +56,7 @@ export default function StockExit() {
   const [error, setError] = useState('');
   const [done, setDone] = useState<StockExitT | null>(null);
   const [receiptBusy, setReceiptBusy] = useState(false);
+  const [asking, setAsking] = useState(false);
 
   const debouncerRef = useRef(createScanDebouncer(DEFAULT_SCAN_DEBOUNCE_MS));
   const busyRef = useRef(false);
@@ -119,7 +120,7 @@ export default function StockExit() {
           show({
             kind: 'ok',
             code,
-            text: `${stock.name} · ${r.line!.quantity} din ${stock.quantity} buc.`,
+            text: `Adăugat: ${stock.name}. Scanează următorul articol sau confirmă la final.`,
           });
         }
       } catch (e) {
@@ -164,10 +165,22 @@ export default function StockExit() {
     if (!next) scanFeedback('ok');
   }
 
+  function askConfirm() {
+    if (submitRef.current) return;
+    const problems = draftProblems(draftRef.current);
+    if (problems.length) {
+      setError(problems[0]);
+      return;
+    }
+    setError('');
+    setAsking(true);
+  }
+
   async function confirmExit() {
     if (submitRef.current) return;
     const problems = draftProblems(draftRef.current);
     if (problems.length) {
+      setAsking(false);
       setError(problems[0]);
       return;
     }
@@ -180,9 +193,11 @@ export default function StockExit() {
         body: JSON.stringify(draftPayload(draftRef.current)),
       });
       saveDraft(store(), null);
+      setAsking(false);
       setDone(res.exit);
       window.scrollTo({ top: 0 });
     } catch (e) {
+      setAsking(false);
       setError(e instanceof ApiError ? e.message : 'Nu s-a putut salva. Verifică conexiunea și reîncearcă.');
     } finally {
       submitRef.current = false;
@@ -273,7 +288,7 @@ export default function StockExit() {
             onClick={startNew}
             className="min-h-[48px] rounded-xl border border-slate-300 bg-white font-medium hover:bg-slate-50"
           >
-            Ieșire nouă
+            Începe o ieșire nouă (alt bon)
           </button>
           <Link
             to={`/stock/iesiri/${done.id}`}
@@ -288,6 +303,8 @@ export default function StockExit() {
 
   // ------------------------------------------------------------ ciornă
   const total = draftTotal(draft);
+  const n = draft.lines.length;
+  const nArt = `${n} ${n === 1 ? 'articol' : 'articole'}`;
   const problems = draftProblems(draft);
   const field = (key: 'predat_de' | 'predat_catre' | 'destinatie', label: string, ph: string) => (
     <div>
@@ -309,9 +326,12 @@ export default function StockExit() {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Ieșire stoc</h1>
-          <p className="text-sm text-slate-500">
-            Scanează tot ce iese, completează predarea și confirmă. Stocul scade la confirmare.
-          </p>
+          <ol className="text-sm text-slate-600 mt-1 space-y-0.5" aria-label="Pași">
+            <li>1. Scanează toate articolele</li>
+            <li>2. Completează predarea</li>
+            <li>3. Confirmă o singură dată la final</li>
+          </ol>
+          <p className="text-xs text-slate-500 mt-1">Toate articolele scanate intră pe același bon. Stocul scade abia la confirmare.</p>
         </div>
         <Link to="/stock/iesiri" className="text-sm text-brand-700 hover:underline whitespace-nowrap pt-1">
           Ieșiri stoc →
@@ -320,7 +340,7 @@ export default function StockExit() {
 
       <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-semibold text-slate-800">Scanare</span>
+          <span className="text-sm font-semibold text-slate-800">1. Scanează toate articolele</span>
           <button
             type="button"
             onClick={toggleMute}
@@ -338,8 +358,82 @@ export default function StockExit() {
           onScan={onCameraRead}
           onUserStart={unlockScanAudio}
           startLabel="Pornește scanarea"
-          stopLabel={`Stop scanare (${draft.lines.length} articole)`}
+          stopLabel={`Stop scanare (${nArt})`}
         />
+        <div className="rounded-xl border border-slate-200 bg-slate-50/50" data-testid="exit-lines">
+          <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-100">
+            <span className="font-semibold text-sm">Articole care ies ({n})</span>
+            <span className="text-sm text-slate-600">
+              {draft.lines.length} {draft.lines.length === 1 ? 'articol' : 'articole'} · <strong>{total} buc.</strong>
+            </span>
+          </div>
+          {draft.lines.length === 0 ? (
+            <p className="px-4 py-6 text-sm text-slate-500 text-center">Nimic scanat încă. Scanează primul articol.</p>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {draft.lines.map((l, i) => (
+                <li key={l.stock_item_id} className="px-3 py-3">
+                  <div className="flex justify-between gap-2">
+                    <span className="shrink-0 w-7 h-7 rounded-full bg-brand-700 text-white text-sm font-bold flex items-center justify-center tabular-nums">
+                      {i + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-slate-900 break-words">{l.name}</div>
+                      <div className="text-xs text-slate-500 font-mono break-all">
+                        {l.code}
+                        {l.mijloc_fix && l.mijloc_fix !== l.code ? ` · MF ${l.mijloc_fix}` : ''}
+                      </div>
+                      <div className="text-xs text-slate-500">În stoc: {l.available} buc.</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setDraft(removeLine(draftRef.current, l.stock_item_id))}
+                      className="text-red-600 text-sm px-2 h-9 rounded-lg hover:bg-red-50 self-start"
+                      aria-label={`Scoate ${l.name}`}
+                      disabled={submitting}
+                    >
+                      Scoate
+                    </button>
+                  </div>
+                  <div className="mt-2 ml-9 flex items-center gap-2">
+                    <button
+                      type="button"
+                      aria-label="Mai puțin"
+                      onClick={() => setDraft(setLineQuantity(draftRef.current, l.stock_item_id, l.quantity - 1))}
+                      disabled={submitting || l.quantity <= 1}
+                      className="h-11 w-11 rounded-lg border border-slate-300 text-xl font-semibold disabled:opacity-40 touch-manipulation"
+                    >
+                      −
+                    </button>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      max={l.available}
+                      value={l.quantity}
+                      onChange={(e) =>
+                        setDraft(setLineQuantity(draftRef.current, l.stock_item_id, Number(e.target.value)))
+                      }
+                      className="h-11 w-16 text-center border border-slate-300 rounded-lg text-base tabular-nums"
+                      aria-label="Cantitate"
+                    />
+                    <button
+                      type="button"
+                      aria-label="Mai mult"
+                      onClick={() => setDraft(setLineQuantity(draftRef.current, l.stock_item_id, l.quantity + 1))}
+                      disabled={submitting || l.quantity >= l.available}
+                      className="h-11 w-11 rounded-lg border border-slate-300 text-xl font-semibold disabled:opacity-40 touch-manipulation"
+                    >
+                      +
+                    </button>
+                    <span className="text-sm text-slate-500">buc.</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
         {flash && (
           <div
             role="status"
@@ -379,79 +473,8 @@ export default function StockExit() {
         </form>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-          <span className="font-semibold text-sm">Articole care ies</span>
-          <span className="text-sm text-slate-600">
-            {draft.lines.length} {draft.lines.length === 1 ? 'articol' : 'articole'} · <strong>{total} buc.</strong>
-          </span>
-        </div>
-        {draft.lines.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-slate-500 text-center">Nimic scanat încă.</p>
-        ) : (
-          <ul className="divide-y divide-slate-100">
-            {draft.lines.map((l) => (
-              <li key={l.stock_item_id} className="px-4 py-3">
-                <div className="flex justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="font-medium text-slate-900 break-words">{l.name}</div>
-                    <div className="text-xs text-slate-500 font-mono break-all">
-                      {l.code}
-                      {l.mijloc_fix && l.mijloc_fix !== l.code ? ` · MF ${l.mijloc_fix}` : ''}
-                    </div>
-                    <div className="text-xs text-slate-500">În stoc: {l.available} buc.</div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setDraft(removeLine(draftRef.current, l.stock_item_id))}
-                    className="text-red-600 text-sm px-2 h-9 rounded-lg hover:bg-red-50 self-start"
-                    aria-label={`Scoate ${l.name}`}
-                    disabled={submitting}
-                  >
-                    Scoate
-                  </button>
-                </div>
-                <div className="mt-2 flex items-center gap-2">
-                  <button
-                    type="button"
-                    aria-label="Mai puțin"
-                    onClick={() => setDraft(setLineQuantity(draftRef.current, l.stock_item_id, l.quantity - 1))}
-                    disabled={submitting || l.quantity <= 1}
-                    className="h-11 w-11 rounded-lg border border-slate-300 text-xl font-semibold disabled:opacity-40 touch-manipulation"
-                  >
-                    −
-                  </button>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    min={1}
-                    max={l.available}
-                    value={l.quantity}
-                    onChange={(e) =>
-                      setDraft(setLineQuantity(draftRef.current, l.stock_item_id, Number(e.target.value)))
-                    }
-                    className="h-11 w-16 text-center border border-slate-300 rounded-lg text-base tabular-nums"
-                    aria-label="Cantitate"
-                  />
-                  <button
-                    type="button"
-                    aria-label="Mai mult"
-                    onClick={() => setDraft(setLineQuantity(draftRef.current, l.stock_item_id, l.quantity + 1))}
-                    disabled={submitting || l.quantity >= l.available}
-                    className="h-11 w-11 rounded-lg border border-slate-300 text-xl font-semibold disabled:opacity-40 touch-manipulation"
-                  >
-                    +
-                  </button>
-                  <span className="text-sm text-slate-500">buc.</span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
       <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
-        <div className="text-sm font-semibold text-slate-800">Predare</div>
+        <div className="text-sm font-semibold text-slate-800">2. Completează predarea</div>
         {field('predat_de', 'Predat de', 'cine predă')}
         {field('predat_catre', 'Predat către', 'numele persoanei care primește')}
         {field('destinatie', 'Destinație', 'unde merg articolele')}
@@ -472,13 +495,14 @@ export default function StockExit() {
           {error}
         </p>
       )}
+      <div className="text-sm font-semibold text-slate-800 pt-1">3. Confirmă o singură dată la final</div>
       <button
         type="button"
-        onClick={confirmExit}
+        onClick={askConfirm}
         disabled={submitting || problems.length > 0}
         className="w-full min-h-[56px] rounded-xl bg-brand-700 text-white font-semibold text-base hover:bg-brand-800 disabled:opacity-50 touch-manipulation"
       >
-        {submitting ? 'Se salvează…' : `Confirmă ieșirea (${total} buc.)`}
+        {submitting ? 'Se salvează…' : `Am terminat – confirmă ieșirea (${nArt}, ${total} buc.)`}
       </button>
       {problems.length > 0 && draft.lines.length > 0 && (
         <p className="text-xs text-slate-500 text-center">{problems[0]}</p>
@@ -492,6 +516,63 @@ export default function StockExit() {
         >
           Renunță la această ieșire
         </button>
+      )}
+
+      {asking && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/50 flex items-end sm:items-center justify-center"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="exit-confirm-title"
+          onClick={() => !submitting && setAsking(false)}
+        >
+          <div
+            className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-4 max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="exit-confirm-title" className="text-lg font-bold text-slate-900">
+              Ai scanat tot? Se creează UN singur bon cu:
+            </h2>
+            <ol className="mt-3 overflow-y-auto divide-y divide-slate-100 border-y border-slate-100 min-h-0" data-testid="confirm-lines">
+              {draft.lines.map((l, i) => (
+                <li key={l.stock_item_id} className="py-2 flex gap-2 text-sm">
+                  <span className="font-bold tabular-nums w-6 shrink-0">{i + 1}.</span>
+                  <span className="min-w-0 flex-1 break-words">{l.name}</span>
+                  <span className="font-semibold tabular-nums whitespace-nowrap">{l.quantity} buc.</span>
+                </li>
+              ))}
+            </ol>
+            <div className="mt-3 text-sm space-y-1">
+              <div>
+                Total: <strong>{nArt}, {total} buc.</strong>
+              </div>
+              <div>
+                <span className="text-slate-500">Predat către:</span> <strong>{draft.predat_catre}</strong>
+              </div>
+              <div>
+                <span className="text-slate-500">Destinație:</span> <strong>{draft.destinatie}</strong>
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setAsking(false)}
+                disabled={submitting}
+                className="min-h-[52px] rounded-xl border border-slate-300 bg-white font-semibold hover:bg-slate-50 touch-manipulation"
+              >
+                Mai scanez
+              </button>
+              <button
+                type="button"
+                onClick={confirmExit}
+                disabled={submitting}
+                className="min-h-[52px] rounded-xl bg-brand-700 text-white font-semibold hover:bg-brand-800 disabled:opacity-60 touch-manipulation"
+              >
+                {submitting ? 'Se salvează…' : 'Da, confirmă'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

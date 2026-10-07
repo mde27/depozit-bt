@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, ApiError } from '../lib/api';
 import { provenientaLabel } from '../lib/labels';
@@ -7,6 +7,8 @@ import { useCompanies } from '../lib/companies';
 import type { StockItem } from '../lib/types';
 import ConfirmDialog from '../components/ConfirmDialog';
 import StockEditModal from '../components/StockEditModal';
+import SearchBox, { EmptySearch, useUrlSearch } from '../components/SearchBox';
+import { filterStock, resultsLabel } from '../lib/stockSearch';
 
 export default function Stock() {
   const { user } = useAuth();
@@ -24,6 +26,9 @@ export default function Stock() {
   const [deleting, setDeleting] = useState<StockItem | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [q, setQ] = useUrlSearch();
+  const [loaded, setLoaded] = useState(false);
+  const shown = useMemo(() => filterStock(items, q), [items, q]);
 
   async function confirmDelete() {
     if (!deleting) return;
@@ -47,6 +52,7 @@ export default function Stock() {
       const qs = p ? `?place=${encodeURIComponent(p)}` : '';
       const data = await api<{ items: StockItem[] }>(`/api/stock${qs}`);
       setItems(data.items);
+      setLoaded(true);
       if (!p) {
         const uniq = [...new Set(data.items.map((i) => i.place).filter(Boolean))] as string[];
         setPlaces(uniq.sort());
@@ -115,6 +121,16 @@ export default function Stock() {
           </button>
         </div>
       )}
+      <div className="mb-3">
+        <SearchBox
+          value={q}
+          onChange={setQ}
+          count={loaded ? (q.trim() ? resultsLabel(shown.length) : resultsLabel(items.length)) : null}
+        />
+      </div>
+      {loaded && q.trim() && shown.length === 0 ? (
+        <EmptySearch query={q} />
+      ) : (
       <div className="overflow-x-auto bg-white rounded-xl border border-slate-200">
         <table className="min-w-full text-sm">
           <thead className="bg-slate-50 text-left">
@@ -132,7 +148,7 @@ export default function Stock() {
             </tr>
           </thead>
           <tbody>
-            {items.map((it) => {
+            {shown.map((it) => {
               const uncat = Boolean(it.is_uncatalogued);
               return (
                 <tr
@@ -218,6 +234,7 @@ export default function Stock() {
           </tbody>
         </table>
       </div>
+      )}
 
       {editing && (
         <StockEditModal

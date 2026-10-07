@@ -4,12 +4,14 @@ import { api, ApiError } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { formatRoTime } from '../lib/time';
 import type { StockExitListRow } from '../lib/types';
+import SearchBox, { EmptySearch, useUrlSearch } from '../components/SearchBox';
+import { resultsLabel } from '../lib/stockSearch';
 
 export default function StockExits() {
   const { user } = useAuth();
   const nav = useNavigate();
   const [rows, setRows] = useState<StockExitListRow[] | null>(null);
-  const [q, setQ] = useState('');
+  const [q, setQ] = useUrlSearch();
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -17,7 +19,7 @@ export default function StockExits() {
       api<{ exits: StockExitListRow[] }>(`/api/stock-exits${q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''}`)
         .then((d) => setRows(d.exits))
         .catch((e) => setError(e instanceof ApiError ? e.message : 'Eroare la încărcare'));
-    }, 250);
+    }, 0); // debounce-ul e în SearchBox
     return () => window.clearTimeout(t);
   }, [q]);
 
@@ -39,14 +41,15 @@ export default function StockExits() {
           + Ieșire nouă
         </Link>
       </div>
-      <input
-        className="w-full sm:max-w-sm border border-slate-300 rounded-lg px-3 py-2 text-base sm:text-sm"
-        placeholder="Caută: nr. bon, persoană, destinație, articol…"
+      <SearchBox
         value={q}
-        onChange={(e) => setQ(e.target.value)}
+        onChange={setQ}
+        placeholder="Caută: nr. bon, persoană, destinație, articol…"
+        count={rows && q.trim() ? resultsLabel(rows.length) : null}
       />
       {error && <p className="text-red-600">{error}</p>}
-      {rows && rows.length === 0 && <p className="text-slate-500 text-sm">Nicio ieșire încă.</p>}
+      {rows && rows.length === 0 &&
+        (q.trim() ? <EmptySearch query={q} /> : <p className="text-slate-500 text-sm">Nicio ieșire încă.</p>)}
 
       {/* telefon: carduri */}
       <ul className="sm:hidden space-y-2">
