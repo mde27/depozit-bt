@@ -49,6 +49,16 @@ export default function Layout() {
                 Intrare stoc
               </NavLink>
             )}
+            {(role === 'admin' || role === 'user2') && (
+              <NavLink to="/stock/iesire" className={linkClass}>
+                Ieșire stoc
+              </NavLink>
+            )}
+            {(role === 'admin' || role === 'user2') && (
+              <NavLink to="/stock/iesiri" className={linkClass}>
+                Ieșiri stoc
+              </NavLink>
+            )}
             {role && (
               <NavLink to="/exporturi" className={linkClass}>
                 Exporturi
@@ -76,7 +86,7 @@ export default function Layout() {
               onClick={() => logout()}
               className="text-rose-600 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg font-medium transition"
             >
-              Ieșire
+              Deconectare
             </button>
           </div>
         </div>

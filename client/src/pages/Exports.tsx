@@ -5,7 +5,7 @@ import { downloadCsv, toCsv, type ExportCell, type ExportColumn } from '../lib/c
 import { PERIOD_PRESETS, presetRange, type PeriodPreset } from '../lib/dates';
 import { companyLabel } from '../lib/labels';
 
-type Kind = 'stock' | 'movements' | 'tickets';
+type Kind = 'stock' | 'movements' | 'tickets' | 'exits';
 
 interface Options {
   kinds: Kind[];
@@ -33,6 +33,7 @@ const KIND_LABELS: Record<Kind, { title: string; desc: string }> = {
   stock: { title: 'Stoc curent', desc: 'Articolele din stoc, cu cantitățile de acum' },
   movements: { title: 'Mișcări stoc', desc: 'Intrări, ieșiri, retururi și corecții pe o perioadă' },
   tickets: { title: 'Cereri', desc: 'Tichetele create într-o perioadă (sumar sau pe linii)' },
+  exits: { title: 'Ieșiri stoc', desc: 'Bonurile de ieșire pe o perioadă, câte un rând pe articol' },
 };
 
 const NO_COMPANY = '__none__';
@@ -85,11 +86,11 @@ export default function Exports() {
   }, []);
 
   const isUser1 = user?.role === 'user1';
-  const usesPeriod = kind === 'movements' || kind === 'tickets';
+  const usesPeriod = kind === 'movements' || kind === 'tickets' || kind === 'exits';
 
   const query = useMemo(() => {
     const q = new URLSearchParams();
-    if (kind !== 'tickets' || !isUser1) {
+    if ((kind !== 'tickets' || !isUser1) && kind !== 'exits') {
       if (company && !options?.companyLocked) q.set('company', company);
     }
     if (kind === 'stock') {

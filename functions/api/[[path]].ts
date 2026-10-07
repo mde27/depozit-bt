@@ -27,7 +27,21 @@ import {
   stockSummary,
 } from '../_lib/catalog';
 import { canManageStock, deleteStockItem, updateStockItem } from '../_lib/stock';
-import { exportMovements, exportOptions, exportStock, exportTickets } from '../_lib/exports';
+import {
+  exportExits,
+  exportMovements,
+  exportOptions,
+  exportStock,
+  exportTickets,
+} from '../_lib/exports';
+import {
+  EXIT_FORBIDDEN_MESSAGE,
+  canUseStockExits,
+  createExit,
+  listExits,
+  loadExit,
+  type ExitBody,
+} from '../_lib/exits';
 import {
   NO_COMPANY_MESSAGE,
   isCompanyScoped,
@@ -166,15 +180,30 @@ async function handleStock(ctx: Ctx, parts: string[], method: string): Promise<R
       .first();
     if (!item) return error('Articol negăsit', 404);
     const { results: movements } = await env.DB.prepare(
-      `SELECT m.*, t.ticket_code
+      `SELECT m.*, t.ticket_code, e.code AS exit_code
        FROM stock_movements m
        LEFT JOIN tickets t ON t.id = m.ticket_id
+       LEFT JOIN stock_exits e ON e.id = m.stock_exit_id
        WHERE m.stock_item_id = ?
        ORDER BY m.id DESC`
     )
       .bind(id)
-      .all();
-    return json({ item, movements });
+      .all()
+      .catch(async (e: unknown) => {
+        // migrations/0005 not applied yet → movements without exit codes
+        if (!/no such (table|column)/i.test(e instanceof Error ? e.message : String(e))) throw e;
+        return env.DB.prepare(
+          `SELECT m.*, t.ticket_code FROM stock_movements m
+           LEFT JOIN tickets t ON t.id = m.ticket_id
+           WHERE m.stock_item_id = ? ORDER BY m.id DESC`
+        )
+          .bind(id)
+          .all();
+      });
+    // Clienții (user1) nu văd numărul bonului de ieșire.
+    const rows = (movements || []) as Record<string, unknown>[];
+    if (auth.user.role === 'user1') for (const m of rows) m.exit_code = null;
+    return json({ item, movements: rows });
   }
 
 
@@ -388,6 +417,8 @@ async function handleExports(ctx: Ctx, parts: string[], method: string): Promise
         return json(await exportMovements(env.DB, auth.user, q));
       case 'tickets':
         return json(await exportTickets(env.DB, auth.user, q));
+      case 'exits':
+        return json(await exportExits(env.DB, auth.user, q));
       default:
         return error('Not found', 404);
     }
@@ -395,6 +426,38 @@ async function handleExports(ctx: Ctx, parts: string[], method: string): Promise
     const err = e as Error & { status?: number };
     if (!err.status) throw e;
     return error(err.message, err.status);
+  }
+}
+
+async function handleStockExits(ctx: Ctx, parts: string[], method: string): Promise<Response> {
+  const { request, env } = ctx;
+  const auth = await requireUser(request, env);
+  if (auth instanceof Response) return auth;
+  if (!canUseStockExits(auth.user)) return error(EXIT_FORBIDDEN_MESSAGE, 403);
+  try {
+    if (method === 'GET' && parts.length === 0) {
+      return json({ exits: await listExits(env.DB, new URL(request.url).searchParams) });
+    }
+    if (method === 'POST' && parts.length === 0) {
+      const body = await readJson<ExitBody>(request);
+      const result = await createExit(env.DB, auth.user, body);
+      return json(result, result.duplicate ? 200 : 201);
+    }
+    if (method === 'GET' && parts.length === 1) {
+      const id = Number(parts[0]);
+      const exit = Number.isInteger(id) && id > 0 ? await loadExit(env.DB, id) : null;
+      if (!exit) return error('Ieșirea nu a fost găsită.', 404);
+      return json({ exit });
+    }
+    return error('Not found', 404);
+  } catch (e: unknown) {
+    const err = e as Error & { status?: number; errors?: unknown };
+    const msg = err.message || String(e);
+    if (/no such (table|column)/i.test(msg)) {
+      return error('Baza de date nu este pregătită pentru ieșiri din stoc. Contactează administratorul.', 503);
+    }
+    if (!err.status) throw e;
+    return error(msg, err.status, err.errors ? { errors: err.errors } : undefined);
   }
 }
 
@@ -567,6 +630,7 @@ export const onRequest: PagesFunction<Env> = async (ctx) => {
   try {
     if (parts[0] === 'auth') return handleAuth(ctx, parts.slice(1), method);
     if (parts[0] === 'stock') return handleStock(ctx, parts.slice(1), method);
+    if (parts[0] === 'stock-exits') return handleStockExits(ctx, parts.slice(1), method);
     if (parts[0] === 'catalog') return handleCatalog(ctx, parts.slice(1), method);
     if (parts[0] === 'tickets') return handleTickets(ctx, parts.slice(1), method);
     if (parts[0] === 'logs') return handleLogs(ctx, method);

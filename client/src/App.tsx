@@ -10,6 +10,9 @@ import TicketScanPage from './pages/TicketScanPage';
 import Stock from './pages/Stock';
 import StockReceive from './pages/StockReceive';
 import StockMovements from './pages/StockMovements';
+import StockExit from './pages/StockExit';
+import StockExits from './pages/StockExits';
+import StockExitDetail from './pages/StockExitDetail';
 import Logs from './pages/Logs';
 import Users from './pages/Users';
 import Exports from './pages/Exports';
@@ -24,6 +27,13 @@ function Private({ children }: { children: React.ReactNode }) {
     );
   }
   if (!user) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
+
+/** Ieșire stoc: doar Magazie (user2) și Admin. */
+function StockStaffOnly({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  if (user?.role !== 'admin' && user?.role !== 'user2') return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 }
 
@@ -55,6 +65,30 @@ export default function App() {
         <Route path="tichete/:id/scan/:stage" element={<TicketScanPage />} />
         <Route path="stock" element={<Stock />} />
         <Route path="stock/receive" element={<StockReceive />} />
+        <Route
+          path="stock/iesire"
+          element={
+            <StockStaffOnly>
+              <StockExit />
+            </StockStaffOnly>
+          }
+        />
+        <Route
+          path="stock/iesiri"
+          element={
+            <StockStaffOnly>
+              <StockExits />
+            </StockStaffOnly>
+          }
+        />
+        <Route
+          path="stock/iesiri/:id"
+          element={
+            <StockStaffOnly>
+              <StockExitDetail />
+            </StockStaffOnly>
+          }
+        />
         <Route path="stock/:id/movements" element={<StockMovements />} />
         <Route
           path="logs"

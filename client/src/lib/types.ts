@@ -93,3 +93,33 @@ export interface ScanLine {
   /** True when barcode was not found in stock_items */
   unknown?: boolean;
 }
+
+/** Ieșire stoc (bon de ieșire) — mereu închisă după confirmare. */
+export interface StockExitItem {
+  id: number;
+  stock_item_id: number;
+  barcode: string | null;
+  name: string;
+  mijloc_fix: string | null;
+  quantity: number;
+  quantity_after: number | null;
+}
+
+export interface StockExit {
+  id: number;
+  code: string;
+  status: string;
+  predat_de: string;
+  predat_catre: string;
+  destinatie: string;
+  observatii: string | null;
+  created_by: string;
+  created_at: string;
+  finalized_at: string;
+  items: StockExitItem[];
+  total: number;
+}
+
+export interface StockExitListRow extends Omit<StockExit, 'items'> {
+  line_count: number;
+}

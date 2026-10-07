@@ -13,6 +13,8 @@ interface Movement {
   barcode_scanned: string | null;
   ticket_code: string | null;
   ticket_id: number | null;
+  exit_code?: string | null;
+  stock_exit_id?: number | null;
 }
 
 const REASON_LABELS: Record<string, string> = {
@@ -21,6 +23,7 @@ const REASON_LABELS: Record<string, string> = {
   SEND_OUT: 'Trimitere (ieșire)',
   RECEIVE_BACK: 'Retur primit',
   MANUAL_EDIT: 'Corecție manuală (editare)',
+  ISSUE: 'Ieșire stoc',
 };
 
 export default function StockMovements() {
@@ -60,7 +63,7 @@ export default function StockMovements() {
               <th className="px-3 py-2">Motiv</th>
               <th className="px-3 py-2 text-right">Modificare</th>
               <th className="px-3 py-2 text-right">După</th>
-              <th className="px-3 py-2">Tichet</th>
+              <th className="px-3 py-2">Tichet / Bon</th>
               <th className="px-3 py-2">Utilizator</th>
               <th className="px-3 py-2">Cod scanat</th>
             </tr>
@@ -78,7 +81,16 @@ export default function StockMovements() {
                   {m.delta > 0 ? `+${m.delta}` : m.delta}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums">{m.quantity_after}</td>
-                <td className="px-3 py-2 font-mono text-xs">{m.ticket_code || '—'}</td>
+                <td className="px-3 py-2 font-mono text-xs">
+                  {m.ticket_code ||
+                    (m.exit_code && m.stock_exit_id ? (
+                      <Link to={`/stock/iesiri/${m.stock_exit_id}`} className="text-brand-700 hover:underline">
+                        {m.exit_code}
+                      </Link>
+                    ) : (
+                      m.exit_code || '—'
+                    ))}
+                </td>
                 <td className="px-3 py-2">{m.created_by}</td>
                 <td className="px-3 py-2 font-mono text-xs">{m.barcode_scanned || '—'}</td>
               </tr>

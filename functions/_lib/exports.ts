@@ -10,7 +10,7 @@ import { formatLocal, isIsoDate, localDayStartUtc, todayLocal } from './time';
 
 export const EXPORT_LIMIT = 50000;
 
-export type ExportKind = 'stock' | 'movements' | 'tickets';
+export type ExportKind = 'stock' | 'movements' | 'tickets' | 'exits';
 type ColType = 'text' | 'number' | 'code' | 'date';
 type Col = { key: string; label: string; type: ColType };
 type Cell = string | number | null;
@@ -34,6 +34,7 @@ export const REASON_LABELS: Record<string, string> = {
   SEND_OUT: 'Trimitere (ieșire)',
   RECEIVE_BACK: 'Retur primit',
   MANUAL_EDIT: 'Corecție manuală (editare)',
+  ISSUE: 'Ieșire stoc',
 };
 
 export const STATUS_LABELS: Record<string, string> = {
@@ -66,7 +67,8 @@ const STATUS_ACTIONS = [
  *   stocul nu ține de rolul lor)
  */
 export function allowedExportKinds(role: Role): ExportKind[] {
-  if (role === 'admin' || role === 'user2' || role === 'user1') {
+  if (role === 'admin' || role === 'user2') return ['stock', 'movements', 'tickets', 'exits'];
+  if (role === 'user1') {
     return ['stock', 'movements', 'tickets'];
   }
   return ['tickets'];
@@ -253,11 +255,14 @@ export async function exportMovements(
   const fromSql = `FROM stock_movements m
      JOIN stock_items s ON s.id = m.stock_item_id
      LEFT JOIN tickets t ON t.id = m.ticket_id
+     LEFT JOIN stock_exits e ON e.id = m.stock_exit_id
      ${w.sql}`;
+  // Clienții (user1) nu văd bonurile de ieșire — doar mișcarea.
+  const ref = isCompanyScoped(user) ? 't.ticket_code' : 'COALESCE(t.ticket_code, e.code)';
   const { rows, truncated } = await runLimited(
     db,
     `SELECT m.created_at, s.sku, s.barcode, s.name, s.company, m.delta, m.reason,
-            m.quantity_after, t.ticket_code, m.created_by
+            m.quantity_after, ${ref} AS ticket_code, m.created_by
      ${fromSql} ORDER BY m.created_at, m.id`,
     w.params
   );
@@ -271,7 +276,7 @@ export async function exportMovements(
     { key: 'delta', label: 'Delta', type: 'number' },
     { key: 'reason', label: 'Motiv', type: 'text' },
     { key: 'quantity_after', label: 'Cantitate după', type: 'number' },
-    { key: 'ticket_code', label: 'Cerere', type: 'text' },
+    { key: 'ticket_code', label: 'Cerere / Bon ieșire', type: 'text' },
     { key: 'created_by', label: 'Utilizator', type: 'text' },
   ];
   return {
@@ -291,6 +296,60 @@ export async function exportMovements(
     truncated,
     limit: EXPORT_LIMIT,
     filename: `miscari-stoc_${periodSuffix(from, to)}.csv`,
+  };
+}
+
+// ---------------------------------------------------------------- Ieșiri stoc
+
+/** Ieșiri stoc: un rând pe articol ieșit (admin / user2). */
+export async function exportExits(
+  db: D1Database,
+  user: AuthUser,
+  q: URLSearchParams
+): Promise<ExportResult> {
+  assertKind(user, 'exits');
+  const w = new Where();
+  const { from, to } = addPeriodFilter(w, 'e.created_at', q);
+  const fromSql = `FROM stock_exit_items i JOIN stock_exits e ON e.id = i.exit_id ${w.sql}`;
+  const { rows, truncated } = await runLimited(
+    db,
+    `SELECT e.created_at, e.code, e.predat_de, e.predat_catre, e.destinatie, e.observatii,
+            i.name, i.mijloc_fix, i.barcode, i.quantity, e.created_by
+     ${fromSql} ORDER BY e.id, i.id`,
+    w.params
+  );
+  const total = truncated ? await countRows(db, fromSql, w.params) : rows.length;
+  const columns: Col[] = [
+    { key: 'created_at', label: 'Data', type: 'date' },
+    { key: 'code', label: 'Bon ieșire', type: 'text' },
+    { key: 'predat_de', label: 'Predat de', type: 'text' },
+    { key: 'predat_catre', label: 'Predat către', type: 'text' },
+    { key: 'destinatie', label: 'Destinație', type: 'text' },
+    { key: 'observatii', label: 'Observații', type: 'text' },
+    { key: 'name', label: 'Denumire', type: 'text' },
+    { key: 'mijloc_fix', label: 'Mijloc fix', type: 'code' },
+    { key: 'barcode', label: 'Cod scanat', type: 'code' },
+    { key: 'quantity', label: 'Cantitate', type: 'number' },
+    { key: 'created_by', label: 'Utilizator', type: 'text' },
+  ];
+  return {
+    ...build('exits', columns, rows, (r) => [
+      formatLocal(r.created_at),
+      s(r.code),
+      s(r.predat_de),
+      s(r.predat_catre),
+      s(r.destinatie),
+      s(r.observatii),
+      s(r.name),
+      s(r.mijloc_fix),
+      s(r.barcode),
+      n(r.quantity),
+      s(r.created_by),
+    ]),
+    total,
+    truncated,
+    limit: EXPORT_LIMIT,
+    filename: `iesiri-stoc_${periodSuffix(from, to)}.csv`,
   };
 }
 
