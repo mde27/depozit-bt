@@ -327,7 +327,7 @@ export async function exportExits(
   const fromSql = `FROM stock_exit_items i JOIN stock_exits e ON e.id = i.exit_id ${w.sql}`;
   const { rows, truncated } = await runLimited(
     db,
-    `SELECT e.created_at, e.code, e.predat_de, e.predat_catre, e.destinatie, e.observatii,
+    `SELECT e.created_at, e.code, e.predat_de, e.predat_catre, e.solicitant, e.destinatie, e.observatii,
             i.name, i.mijloc_fix, i.barcode, i.quantity, e.created_by
      ${fromSql} ORDER BY e.id, i.id`,
     w.params
@@ -338,6 +338,7 @@ export async function exportExits(
     { key: 'code', label: 'Bon ieșire', type: 'text' },
     { key: 'predat_de', label: 'Predat de', type: 'text' },
     { key: 'predat_catre', label: 'Predat către', type: 'text' },
+    { key: 'solicitant', label: 'Solicitant', type: 'text' },
     { key: 'destinatie', label: 'Destinație', type: 'text' },
     { key: 'observatii', label: 'Observații', type: 'text' },
     { key: 'name', label: 'Denumire', type: 'text' },
@@ -352,6 +353,7 @@ export async function exportExits(
       s(r.code),
       s(r.predat_de),
       s(r.predat_catre),
+      s(r.solicitant),
       s(r.destinatie),
       s(r.observatii),
       s(r.name),

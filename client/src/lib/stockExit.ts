@@ -22,6 +22,7 @@ export interface ExitDraft {
   key: string;
   predat_de: string;
   predat_catre: string;
+  solicitant: string;
   destinatie: string;
   observatii: string;
   lines: DraftLine[];
@@ -42,11 +43,22 @@ export function newDraftKey(): string {
   return `d-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+/** „Predat de” precompletat pe orice ieșire nouă (se poate modifica). */
+export const DEFAULT_PREDAT_DE = 'Ida Bereczki';
+/** valori vechi care se înlocuiesc automat cu cea implicită */
+const OLD_PREDAT_DE = new Set(['', 'ida']);
+
+/** Pune „Predat de” implicit dacă ciorna are gol sau vechiul „Ida” (numele de utilizator). */
+export function withDefaultPredatDe(draft: ExitDraft): ExitDraft {
+  return OLD_PREDAT_DE.has(draft.predat_de.trim().toLowerCase()) ? { ...draft, predat_de: DEFAULT_PREDAT_DE } : draft;
+}
+
 export function emptyDraft(predatDe = ''): ExitDraft {
   return {
     key: newDraftKey(),
     predat_de: predatDe,
     predat_catre: '',
+    solicitant: '',
     destinatie: '',
     observatii: '',
     lines: [],
@@ -121,6 +133,7 @@ export function draftProblems(draft: ExitDraft): string[] {
   if (!draft.lines.length) out.push('Scanează cel puțin un articol.');
   if (!draft.predat_de.trim()) out.push('Completează „Predat de”.');
   if (!draft.predat_catre.trim()) out.push('Completează „Predat către”.');
+  if (!draft.solicitant.trim()) out.push('Completează „Solicitant”.');
   if (!draft.destinatie.trim()) out.push('Completează „Destinație”.');
   for (const l of draft.lines) {
     if (l.quantity > l.available) out.push(`„${l.name}”: în stoc sunt doar ${l.available} buc.`);
@@ -133,6 +146,7 @@ export function draftPayload(draft: ExitDraft) {
     client_key: draft.key,
     predat_de: draft.predat_de.trim(),
     predat_catre: draft.predat_catre.trim(),
+    solicitant: draft.solicitant.trim(),
     destinatie: draft.destinatie.trim(),
     observatii: draft.observatii.trim(),
     items: draft.lines.map((l) => ({
@@ -156,6 +170,7 @@ export function loadDraft(storage: Pick<Storage, 'getItem'> | undefined): ExitDr
       key: d.key,
       predat_de: String(d.predat_de ?? ''),
       predat_catre: String(d.predat_catre ?? ''),
+      solicitant: String(d.solicitant ?? ''),
       destinatie: String(d.destinatie ?? ''),
       observatii: String(d.observatii ?? ''),
       lines: d.lines.filter((l) => l && Number.isInteger(l.stock_item_id) && l.quantity > 0),

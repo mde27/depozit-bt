@@ -112,6 +112,7 @@ export interface StockExit {
   status: string;
   predat_de: string;
   predat_catre: string;
+  solicitant?: string | null;
   destinatie: string;
   observatii: string | null;
   created_by: string;

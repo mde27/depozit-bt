@@ -49,21 +49,24 @@ describe('stock exit draft', () => {
     expect(d.lines.map((l) => l.stock_item_id)).toEqual([7]);
   });
 
-  it('requires lines and the three handover fields', () => {
+  it('requires lines and the four handover fields', () => {
     const d = emptyDraft('');
     expect(draftProblems(d)).toEqual([
       'Scanează cel puțin un articol.',
       'Completează „Predat de”.',
       'Completează „Predat către”.',
+      'Completează „Solicitant”.',
       'Completează „Destinație”.',
     ]);
     const ok = {
       ...addScan(d, 'A', chair).draft,
       predat_de: 'Ida',
       predat_catre: 'Ion Pop',
+      solicitant: '  BT Sucursala Dej ',
       destinatie: 'Sucursala Dej',
     };
     expect(draftProblems(ok)).toEqual([]);
+    expect(draftPayload(ok).solicitant).toBe('BT Sucursala Dej');
     const p = draftPayload({ ...ok, observatii: '  ' });
     expect(p).toMatchObject({
       client_key: ok.key,
@@ -107,5 +110,18 @@ describe('notă pe articol', () => {
     const items = draftPayload({ ...d, predat_catre: 'x', destinatie: 'y' }).items;
     expect(items.find((i) => i.stock_item_id === 1)).toMatchObject({ observatii: 'Scaun Miro fără cod BT' });
     expect(items.find((i) => i.stock_item_id === 2)).not.toHaveProperty('observatii');
+  });
+});
+
+describe('Predat de implicit', () => {
+  it('replaces empty or the old username „Ida”, keeps anything else', async () => {
+    const { DEFAULT_PREDAT_DE, withDefaultPredatDe } = await import('./stockExit');
+    expect(DEFAULT_PREDAT_DE).toBe('Ida Bereczki');
+    expect(withDefaultPredatDe(emptyDraft('')).predat_de).toBe('Ida Bereczki');
+    expect(withDefaultPredatDe(emptyDraft('Ida')).predat_de).toBe('Ida Bereczki');
+    expect(withDefaultPredatDe(emptyDraft(' ida ')).predat_de).toBe('Ida Bereczki');
+    const custom = emptyDraft('Mutantii');
+    expect(withDefaultPredatDe(custom)).toBe(custom);
+    expect(emptyDraft(DEFAULT_PREDAT_DE)).toMatchObject({ predat_de: 'Ida Bereczki', predat_catre: '', solicitant: '', destinatie: '' });
   });
 });

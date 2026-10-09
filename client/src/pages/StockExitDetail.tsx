@@ -72,6 +72,10 @@ export default function StockExitDetail() {
               <div className="font-semibold">{exit.predat_catre}</div>
             </div>
             <div>
+              <div className="text-xs text-slate-500">Solicitant</div>
+              <div className="font-semibold">{exit.solicitant || '—'}</div>
+            </div>
+            <div>
               <div className="text-xs text-slate-500">Destinație</div>
               <div className="font-semibold">{exit.destinatie}</div>
             </div>

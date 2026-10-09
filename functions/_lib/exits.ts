@@ -20,6 +20,7 @@ export type ExitRow = {
   status: string;
   predat_de: string;
   predat_catre: string;
+  solicitant: string | null;
   destinatie: string;
   observatii: string | null;
   created_by: string;
@@ -31,6 +32,7 @@ export type ExitLineInput = { stock_item_id?: number; code?: string; quantity?: 
 export type ExitBody = {
   predat_de?: string;
   predat_catre?: string;
+  solicitant?: string;
   destinatie?: string;
   observatii?: string;
   client_key?: string;
@@ -77,8 +79,9 @@ export async function listExits(db: D1Database, q: URLSearchParams) {
   if (search) {
     const like = `%${search}%`;
     where = `WHERE e.code LIKE ? OR e.predat_catre LIKE ? OR e.destinatie LIKE ? OR e.predat_de LIKE ?
+             OR e.solicitant LIKE ?
              OR e.id IN (SELECT exit_id FROM stock_exit_items WHERE name LIKE ? OR barcode LIKE ?)`;
-    params.push(like, like, like, like, like, like);
+    params.push(like, like, like, like, like, like, like);
   }
   const { results } = await db
     .prepare(
@@ -112,6 +115,7 @@ export async function createExit(db: D1Database, user: AuthUser, body: ExitBody)
 
   const predatDe = text(body.predat_de, 'Predat de', true)!;
   const predatCatre = text(body.predat_catre, 'Predat către', true)!;
+  const solicitant = text(body.solicitant, 'Solicitant', true)!;
   const destinatie = text(body.destinatie, 'Destinație', true)!;
   const observatii = text(body.observatii, 'Observații', false, 1000);
 
@@ -183,10 +187,10 @@ export async function createExit(db: D1Database, user: AuthUser, body: ExitBody)
       db
         .prepare(
           `INSERT INTO stock_exits
-           (code, status, predat_de, predat_catre, destinatie, observatii, client_key, created_by_id, created_by)
-           VALUES (?, 'FINALIZAT', ?, ?, ?, ?, ?, ?, ?)`
+           (code, status, predat_de, predat_catre, solicitant, destinatie, observatii, client_key, created_by_id, created_by)
+           VALUES (?, 'FINALIZAT', ?, ?, ?, ?, ?, ?, ?, ?)`
         )
-        .bind(code, predatDe, predatCatre, destinatie, observatii, clientKey, user.id, user.username),
+        .bind(code, predatDe, predatCatre, solicitant, destinatie, observatii, clientKey, user.id, user.username),
     ];
     for (const { item, qty, scanned, note } of merged.values()) {
       stmts.push(
@@ -218,6 +222,7 @@ export async function createExit(db: D1Database, user: AuthUser, body: ExitBody)
       exit_code: code,
       predat_de: predatDe,
       predat_catre: predatCatre,
+      solicitant,
       destinatie,
       observatii,
       total: [...merged.values()].reduce((a, l) => a + l.qty, 0),

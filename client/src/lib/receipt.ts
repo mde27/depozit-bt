@@ -3,6 +3,50 @@
  * Se încarcă doar la cerere (import dinamic) ca să nu mărească pagina principală.
  */
 import { formatRoTime } from './time';
+import { COMPANY, type CompanyInfo } from './company';
+
+export type ReceiptImage = { data: Uint8Array; type: 'png' | 'jpg'; width: number; height: number };
+export type ReceiptOptions = { company?: CompanyInfo; logo?: ReceiptImage | null; stamp?: ReceiptImage | null };
+
+/** Dimensiunile unei imagini PNG/JPG din octeți; null dacă nu e PNG/JPG valid. */
+export function imageInfo(data: Uint8Array): ReceiptImage | null {
+  if (data.length > 24 && data[0] === 0x89 && data[1] === 0x50 && data[2] === 0x4e && data[3] === 0x47) {
+    const v = new DataView(data.buffer, data.byteOffset, data.byteLength);
+    return { data, type: 'png', width: v.getUint32(16), height: v.getUint32(20) };
+  }
+  if (data.length > 4 && data[0] === 0xff && data[1] === 0xd8) {
+    let i = 2;
+    while (i + 9 < data.length) {
+      if (data[i] !== 0xff) return null;
+      const m = data[i + 1];
+      const len = (data[i + 2] << 8) | data[i + 3];
+      if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) {
+        return { data, type: 'jpg', height: (data[i + 5] << 8) | data[i + 6], width: (data[i + 7] << 8) | data[i + 8] };
+      }
+      i += 2 + len;
+    }
+  }
+  return null;
+}
+
+/** Încarcă o imagine opțională; orice problemă (lipsă, 404, pagina HTML de rezervă) → null. */
+export async function loadReceiptImage(url: string): Promise<ReceiptImage | null> {
+  if (!url || typeof fetch === 'undefined') return null;
+  try {
+    const r = await fetch(url, { cache: 'no-cache' });
+    if (!r.ok) return null;
+    const info = imageInfo(new Uint8Array(await r.arrayBuffer()));
+    return info && info.width > 0 && info.height > 0 ? info : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Scalează imaginea ca să încapă în maxW×maxH (pixeli în document). */
+function fit(img: ReceiptImage, maxW: number, maxH: number) {
+  const k = Math.min(maxW / img.width, maxH / img.height, 1);
+  return { width: Math.round(img.width * k), height: Math.round(img.height * k) };
+}
 
 export interface ReceiptExit {
   code: string;
@@ -10,6 +54,7 @@ export interface ReceiptExit {
   predat_de: string;
   predat_catre: string;
   destinatie: string;
+  solicitant?: string | null;
   observatii: string | null;
   created_by?: string;
   items: { name: string; mijloc_fix: string | null; barcode: string | null; quantity: number; observatii?: string | null }[];
@@ -32,12 +77,13 @@ export function receiptRows(exit: ReceiptExit) {
   return { rows, total };
 }
 
-export async function buildReceiptDocx(exit: ReceiptExit): Promise<Blob | Uint8Array> {
+export async function buildReceiptDocx(exit: ReceiptExit, opts: ReceiptOptions = {}): Promise<Blob | Uint8Array> {
   const d = await import('docx');
   const {
     AlignmentType,
     BorderStyle,
     Document,
+    ImageRun,
     Packer,
     Paragraph,
     Table,
@@ -51,7 +97,7 @@ export async function buildReceiptDocx(exit: ReceiptExit): Promise<Blob | Uint8A
   const run = (text: string, opts: { bold?: boolean; size?: number; color?: string } = {}) =>
     new TextRun({ text, font: FONT, size: opts.size ?? 21, bold: opts.bold, color: opts.color });
   const p = (
-    children: InstanceType<typeof TextRun>[],
+    children: (InstanceType<typeof TextRun> | InstanceType<typeof ImageRun>)[],
     opts: { align?: (typeof AlignmentType)[keyof typeof AlignmentType]; after?: number; before?: number } = {}
   ) =>
     new Paragraph({
@@ -115,14 +161,64 @@ export async function buildReceiptDocx(exit: ReceiptExit): Promise<Blob | Uint8A
   const info = (label: string, value: string) =>
     p([run(`${label}: `, { bold: true }), run(value || '—')], { after: 40 });
 
-  const sign = (role: string, name: string) =>
+  const company = opts.company ?? COMPANY;
+  const img = (im: ReceiptImage, maxW: number, maxH: number) =>
+    new ImageRun({ type: im.type, data: im.data, transformation: fit(im, maxW, maxH) });
+
+  // ---- antet: datele firmei (stânga) + siglă opțională (dreapta)
+  const contact = [company.phone && `Tel.: ${company.phone}`, company.web && `Web: ${company.web}`, company.email && `E-mail: ${company.email}`].filter(Boolean);
+  const companyLines = [
+    company.tagline ? p([run(company.tagline, { bold: true, size: 16, color: '047857' })], { after: 20 }) : null,
+    company.name ? p([run(company.name, { bold: true, size: 24 })], { after: 20 }) : null,
+    [company.cui && `CUI: ${company.cui}`, company.regCom && `Reg. Com.: ${company.regCom}`].filter(Boolean).length
+      ? p([run([company.cui && `CUI: ${company.cui}`, company.regCom && `Reg. Com.: ${company.regCom}`].filter(Boolean).join('   ·   '), { size: 18 })], { after: 20 })
+      : null,
+    company.address ? p([run(company.address, { size: 18 })], { after: 20 }) : null,
+    contact.length ? p([run(contact.join('   ·   '), { size: 18 })], { after: 0 }) : null,
+  ].filter((x): x is InstanceType<typeof Paragraph> => x !== null);
+  const antetBorder = { style: BorderStyle.SINGLE, size: 12, color: '047857' };
+  const antet = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: { ...noBorders, bottom: antetBorder },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: opts.logo ? 70 : 100, type: WidthType.PERCENTAGE },
+            borders: { ...noBorders, bottom: antetBorder },
+            margins: { bottom: 100 },
+            children: companyLines.length ? companyLines : [p([run('')])],
+          }),
+          ...(opts.logo
+            ? [
+                new TableCell({
+                  width: { size: 30, type: WidthType.PERCENTAGE },
+                  borders: { ...noBorders, bottom: antetBorder },
+                  margins: { bottom: 100 },
+                  children: [p([img(opts.logo, 200, 83)], { align: AlignmentType.RIGHT, after: 0 })],
+                }),
+              ]
+            : []),
+        ],
+      }),
+    ],
+  });
+
+  // ---- semnături: Predat de (cu L.S. / ștampilă) | Primit de
+  const box = { style: BorderStyle.SINGLE, size: 4, color: '94A3B8' };
+  const signCell = (title: string, name: string, withStamp: boolean) =>
     new TableCell({
       width: { size: 50, type: WidthType.PERCENTAGE },
-      borders: noBorders,
+      borders: { top: box, bottom: box, left: box, right: box },
+      margins: { top: 100, bottom: 100, left: 140, right: 140 },
       children: [
-        p([run(role, { bold: true })], { after: 40 }),
-        p([run(`Nume: ${name}`)], { after: 360 }),
-        p([run('Semnătura: ______________________')], { after: 0 }),
+        p([run(title, { bold: true, size: 22 })], { after: 80 }),
+        p([run('Nume: ', { bold: true }), run(name || '')], { after: 80 }),
+        p([run(withStamp ? 'Semnătură / L.S.:' : 'Semnătură:', { bold: true })], { after: 0 }),
+        withStamp && opts.stamp
+          ? p([img(opts.stamp, 110, 110)], { align: AlignmentType.CENTER, before: 60, after: 60 })
+          : // spațiu liber pentru semnătura (și ștampila) de mână
+            p([run('')], { after: 1500 }),
       ],
     });
 
@@ -135,7 +231,8 @@ export async function buildReceiptDocx(exit: ReceiptExit): Promise<Blob | Uint8A
       {
         properties: { page: { margin: { top: 900, bottom: 900, left: 1000, right: 1000 } } },
         children: [
-          p([run('DEPOZIT BT', { bold: true, size: 18, color: '047857' })], { after: 120 }),
+          antet,
+          p([run('')], { after: 160 }),
           p([run('Proces-verbal de predare / Bon de ieșire', { bold: true, size: 30 })], {
             align: center,
             after: 60,
@@ -147,6 +244,7 @@ export async function buildReceiptDocx(exit: ReceiptExit): Promise<Blob | Uint8A
           }),
           info('Predat de', exit.predat_de),
           info('Predat către', exit.predat_catre),
+          info('Solicitant', exit.solicitant || ''),
           info('Destinație', exit.destinatie),
           ...(exit.observatii?.trim()
             ? [
@@ -171,12 +269,16 @@ export async function buildReceiptDocx(exit: ReceiptExit): Promise<Blob | Uint8A
           new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [header, ...body, totalRow] }),
           p([run(`Subsemnații confirmăm predarea și primirea articolelor de mai sus, în total ${total} buc.`)], {
             before: 200,
-            after: 480,
+            after: 240,
           }),
           new Table({
             width: { size: 100, type: WidthType.PERCENTAGE },
-            borders: noBorders,
-            rows: [new TableRow({ children: [sign('Am predat', exit.predat_de), sign('Am primit', exit.predat_catre)] })],
+            rows: [
+              new TableRow({
+                cantSplit: true,
+                children: [signCell('Predat de', exit.predat_de, true), signCell('Primit de', exit.predat_catre, false)],
+              }),
+            ],
           }),
         ],
       },
@@ -187,7 +289,8 @@ export async function buildReceiptDocx(exit: ReceiptExit): Promise<Blob | Uint8A
 }
 
 export async function downloadReceipt(exit: ReceiptExit) {
-  const blob = (await buildReceiptDocx(exit)) as Blob;
+  const [logo, stamp] = await Promise.all([loadReceiptImage(COMPANY.logoUrl), loadReceiptImage(COMPANY.stampUrl)]);
+  const blob = (await buildReceiptDocx(exit, { logo, stamp })) as Blob;
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

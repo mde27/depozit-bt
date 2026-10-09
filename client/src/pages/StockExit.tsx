@@ -20,12 +20,14 @@ import {
   draftPayload,
   draftProblems,
   draftTotal,
+  DEFAULT_PREDAT_DE,
   emptyDraft,
   loadDraft,
   removeLine,
   saveDraft,
   setLineNote,
   setLineQuantity,
+  withDefaultPredatDe,
   type ExitDraft,
 } from '../lib/stockExit';
 import { downloadReceipt } from '../lib/receipt';
@@ -48,7 +50,10 @@ const inputCls =
 export default function StockExit() {
   const { user } = useAuth();
   const [draft, setDraftState] = useState<ExitDraft>(
-    () => loadDraft(store()) ?? emptyDraft(user?.username ?? '')
+    () => {
+      const saved = loadDraft(store());
+      return saved ? withDefaultPredatDe(saved) : emptyDraft(DEFAULT_PREDAT_DE);
+    }
   );
   const [manual, setManual] = useState('');
   const [muted, setMuted] = useState<boolean>(isScanSoundMuted);
@@ -72,9 +77,10 @@ export default function StockExit() {
   }, []);
 
   useEffect(() => {
-    // „Predat de” precompletat cu utilizatorul (dacă ciorna nu are deja un nume)
-    if (user && !draftRef.current.predat_de) setDraft({ ...draftRef.current, predat_de: user.username });
-  }, [user, setDraft]);
+    // ciornă salvată cu „Ida” sau gol → „Predat de” implicit (și salvăm corecția)
+    const stored = loadDraft(store());
+    if (stored && stored.predat_de !== draftRef.current.predat_de) saveDraft(store(), draftRef.current);
+  }, []);
 
   useEffect(() => () => void (flashTimer.current && window.clearTimeout(flashTimer.current)), []);
 
@@ -207,7 +213,7 @@ export default function StockExit() {
   }
 
   function startNew() {
-    const next = emptyDraft(user?.username ?? '');
+    const next = emptyDraft(DEFAULT_PREDAT_DE);
     setDraft(next);
     setDone(null);
     setError('');
@@ -249,6 +255,9 @@ export default function StockExit() {
           </div>
           <div>
             <span className="text-slate-500">Predat către:</span> <strong>{done.predat_catre}</strong>
+          </div>
+          <div>
+            <span className="text-slate-500">Solicitant:</span> <strong>{done.solicitant || '—'}</strong>
           </div>
           <div>
             <span className="text-slate-500">Destinație:</span> <strong>{done.destinatie}</strong>
@@ -308,7 +317,7 @@ export default function StockExit() {
   const n = draft.lines.length;
   const nArt = `${n} ${n === 1 ? 'articol' : 'articole'}`;
   const problems = draftProblems(draft);
-  const field = (key: 'predat_de' | 'predat_catre' | 'destinatie', label: string, ph: string) => (
+  const field = (key: 'predat_de' | 'predat_catre' | 'solicitant' | 'destinatie', label: string, ph: string) => (
     <div>
       <label className="block text-xs font-medium text-slate-600 mb-1">
         {label} <span className="text-red-600">*</span>
@@ -488,6 +497,7 @@ export default function StockExit() {
         <div className="text-sm font-semibold text-slate-800">2. Completează predarea</div>
         {field('predat_de', 'Predat de', 'cine predă')}
         {field('predat_catre', 'Predat către', 'numele persoanei care primește')}
+        {field('solicitant', 'Solicitant', 'cine a cerut articolele')}
         {field('destinatie', 'Destinație', 'unde merg articolele')}
         <div>
           <label className="block text-xs font-medium text-slate-600 mb-1">Observații (apar pe bon)</label>
@@ -518,7 +528,7 @@ export default function StockExit() {
       {problems.length > 0 && draft.lines.length > 0 && (
         <p className="text-xs text-slate-500 text-center">{problems[0]}</p>
       )}
-      {(draft.lines.length > 0 || draft.predat_catre || draft.destinatie) && (
+      {(draft.lines.length > 0 || draft.predat_catre || draft.solicitant || draft.destinatie) && (
         <button
           type="button"
           onClick={discardDraft}
@@ -564,6 +574,9 @@ export default function StockExit() {
               </div>
               <div>
                 <span className="text-slate-500">Predat către:</span> <strong>{draft.predat_catre}</strong>
+              </div>
+              <div>
+                <span className="text-slate-500">Solicitant:</span> <strong>{draft.solicitant}</strong>
               </div>
               <div>
                 <span className="text-slate-500">Destinație:</span> <strong>{draft.destinatie}</strong>

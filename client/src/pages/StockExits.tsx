@@ -44,7 +44,7 @@ export default function StockExits() {
       <SearchBox
         value={q}
         onChange={setQ}
-        placeholder="Caută: nr. bon, persoană, destinație, articol…"
+        placeholder="Caută: nr. bon, persoană, solicitant, destinație, articol…"
         count={rows && q.trim() ? resultsLabel(rows.length) : null}
       />
       {error && <p className="text-red-600">{error}</p>}
@@ -63,6 +63,7 @@ export default function StockExits() {
               <div className="text-sm mt-1">
                 către <strong>{r.predat_catre}</strong> · {r.destinatie}
               </div>
+              <div className="text-xs text-slate-600 mt-0.5">Solicitant: {r.solicitant || '—'}</div>
               <div className="text-xs text-slate-500 mt-0.5">
                 {r.line_count} articole · {r.total} buc. · de {r.created_by}
               </div>
@@ -80,6 +81,7 @@ export default function StockExits() {
                 <th className="px-3 py-2">Data</th>
                 <th className="px-3 py-2">Nr. bon</th>
                 <th className="px-3 py-2">Predat către</th>
+                <th className="px-3 py-2">Solicitant</th>
                 <th className="px-3 py-2">Destinație</th>
                 <th className="px-3 py-2 text-right">Articole</th>
                 <th className="px-3 py-2 text-right">Buc.</th>
@@ -101,6 +103,7 @@ export default function StockExits() {
                     </Link>
                   </td>
                   <td className="px-3 py-2">{r.predat_catre}</td>
+                  <td className="px-3 py-2">{r.solicitant || '—'}</td>
                   <td className="px-3 py-2">{r.destinatie}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{r.line_count}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{r.total}</td>
