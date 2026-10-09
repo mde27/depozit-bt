@@ -108,3 +108,23 @@ describe('antet, solicitant, semnături', () => {
     expect(companyHasPlaceholders({ ...COMPANY, name: 'X', cui: 'X', regCom: 'X', address: 'X', phone: '', email: '' })).toBe(false);
   });
 });
+
+describe('Descriere nu apare pe bon', () => {
+  it('keeps the 5-column table and ignores description (Obs. stays under the name)', async () => {
+    const items = [
+        { name: 'NECUNOSCUT 011963', mijloc_fix: null, barcode: '011963', quantity: 1, description: 'rollbox', observatii: 'fără cod BT' },
+        { name: 'SCAUN OPERATIONAL MIRO', mijloc_fix: null, barcode: '1', quantity: 1, description: 'SCAUN OPERATIONAL MIRO' },
+        { name: 'BIROU', mijloc_fix: null, barcode: '2', quantity: 1, description: '-' },
+    ];
+    const { rows } = receiptRows({ ...exit, items });
+    expect(rows[0]).toEqual(['1', 'NECUNOSCUT 011963\nObs.: fără cod BT', '—', '011963', '1']);
+    expect(rows.every((r) => r.length === 5)).toBe(true);
+    expect(rows.flat().join(' ')).not.toContain('rollbox');
+    const buf = await buildReceiptDocx({ ...exit, items });
+    const { default: JSZip } = await import('jszip');
+    const xml = await (await JSZip.loadAsync(buf)).file('word/document.xml')!.async('string');
+    expect(xml).not.toContain('Descriere');
+    expect(xml).not.toContain('rollbox');
+    expect(xml).toContain('Obs.: fără cod BT');
+  });
+});

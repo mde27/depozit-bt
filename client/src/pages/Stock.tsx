@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, ApiError } from '../lib/api';
+import { descriereLabel } from '../lib/descriere';
 import { provenientaLabel } from '../lib/labels';
 import { useAuth } from '../lib/auth';
 import { useCompanies } from '../lib/companies';
@@ -182,6 +183,11 @@ export default function Stock() {
                     )}
                     {it.name2 ? (
                       <div className="text-xs font-normal text-slate-500">{it.name2}</div>
+                    ) : null}
+                    {descriereLabel(it.description, it.name, it.name2) ? (
+                      <div className="text-xs font-normal text-slate-600">
+                        Descriere: {descriereLabel(it.description, it.name, it.name2)}
+                      </div>
                     ) : null}
                     {provenientaLabel(it.provenienta) ? (
                       <div className="text-xs font-normal text-slate-600">

@@ -13,6 +13,8 @@ export interface DraftLine {
   /** câte bucăți erau în stoc la scanare */
   available: number;
   quantity: number;
+  /** Descriere din stoc (doar afișare) */
+  description?: string | null;
   /** notă opțională pentru acest articol (apare pe bon) */
   observatii?: string;
 }
@@ -33,6 +35,7 @@ export type StockMatchLite = {
   name: string;
   mijloc_fix: string | null;
   quantity: number;
+  description?: string | null;
 };
 
 export type AddResult = 'added' | 'incremented' | 'max' | 'empty';
@@ -92,6 +95,7 @@ export function addScan(
     code,
     name: stock.name,
     mijloc_fix: stock.mijloc_fix ?? null,
+    description: stock.description ?? null,
     available,
     quantity: 1,
   };

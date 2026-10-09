@@ -62,8 +62,10 @@ export async function loadExit(db: D1Database, id: number) {
   if (!exit) return null;
   const { results } = await db
     .prepare(
-      `SELECT id, stock_item_id, barcode, name, mijloc_fix, quantity, quantity_after, observatii
-       FROM stock_exit_items WHERE exit_id = ? ORDER BY id`
+      `SELECT i.id, i.stock_item_id, i.barcode, i.name, i.mijloc_fix, i.quantity, i.quantity_after, i.observatii,
+              s.description
+       FROM stock_exit_items i LEFT JOIN stock_items s ON s.id = i.stock_item_id
+       WHERE i.exit_id = ? ORDER BY i.id`
     )
     .bind(id)
     .all();
@@ -80,8 +82,9 @@ export async function listExits(db: D1Database, q: URLSearchParams) {
     const like = `%${search}%`;
     where = `WHERE e.code LIKE ? OR e.predat_catre LIKE ? OR e.destinatie LIKE ? OR e.predat_de LIKE ?
              OR e.solicitant LIKE ?
-             OR e.id IN (SELECT exit_id FROM stock_exit_items WHERE name LIKE ? OR barcode LIKE ?)`;
-    params.push(like, like, like, like, like, like, like);
+             OR e.id IN (SELECT i.exit_id FROM stock_exit_items i LEFT JOIN stock_items s ON s.id = i.stock_item_id
+                         WHERE i.name LIKE ? OR i.barcode LIKE ? OR i.observatii LIKE ? OR s.description LIKE ?)`;
+    params.push(like, like, like, like, like, like, like, like, like);
   }
   const { results } = await db
     .prepare(

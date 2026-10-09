@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError } from '../lib/api';
+import { descriereLabel } from '../lib/descriere';
 import type { StockItem, Ticket, TicketInfo } from '../lib/types';
 import { useAuth } from '../lib/auth';
 import SearchBox from '../components/SearchBox';
@@ -248,7 +249,9 @@ export default function Cerere() {
                     : [...stock.filter((s) => s.id === line.stock_item_id), ...stockShown]
                   ).map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.name} · {s.barcode} — stoc {s.quantity}
+                      {s.name}
+                      {descriereLabel(s.description, s.name, s.name2) ? ` (${descriereLabel(s.description, s.name, s.name2)})` : ''} ·{' '}
+                      {s.barcode} — stoc {s.quantity}
                     </option>
                   ))}
                 </select>

@@ -206,7 +206,7 @@ export async function exportStock(
   const from = `FROM stock_items s ${w.sql}`;
   const { rows, truncated } = await runLimited(
     db,
-    `SELECT s.sku, s.barcode, s.mijloc_fix, s.mijloc_fix_orig, s.name, s.name2, s.description,
+    `SELECT s.sku, s.barcode, s.mijloc_fix, s.mijloc_fix_orig, s.name, s.name2, NULLIF(TRIM(s.description), '-') AS description,
             s.company, s.place, s.quantity, s.source_from, s.is_uncatalogued, s.updated_at
      ${from} ORDER BY s.name COLLATE NOCASE, s.sku`,
     w.params
@@ -275,7 +275,7 @@ export async function exportMovements(
   const ref = isCompanyScoped(user) ? 't.ticket_code' : 'COALESCE(t.ticket_code, e.code)';
   const { rows, truncated } = await runLimited(
     db,
-    `SELECT m.created_at, s.sku, s.barcode, s.name, s.company, m.delta, m.reason,
+    `SELECT m.created_at, s.sku, s.barcode, s.name, NULLIF(TRIM(s.description), '-') AS description, s.company, m.delta, m.reason,
             m.quantity_after, ${ref} AS ticket_code, m.created_by
      ${fromSql} ORDER BY m.created_at, m.id`,
     w.params
@@ -286,6 +286,7 @@ export async function exportMovements(
     { key: 'sku', label: 'SKU', type: 'code' },
     { key: 'barcode', label: 'Barcode', type: 'code' },
     { key: 'name', label: 'Denumire', type: 'text' },
+    { key: 'description', label: 'Descriere', type: 'text' },
     { key: 'company', label: 'Firmă', type: 'text' },
     { key: 'delta', label: 'Delta', type: 'number' },
     { key: 'reason', label: 'Motiv', type: 'text' },
@@ -299,6 +300,7 @@ export async function exportMovements(
       s(r.sku),
       s(r.barcode),
       s(r.name),
+      s(r.description),
       s(r.company),
       n(r.delta),
       REASON_LABELS[String(r.reason)] || s(r.reason),
@@ -324,11 +326,13 @@ export async function exportExits(
   assertKind(user, 'exits');
   const w = new Where();
   const { from, to } = addPeriodFilter(w, 'e.created_at', q);
-  const fromSql = `FROM stock_exit_items i JOIN stock_exits e ON e.id = i.exit_id ${w.sql}`;
+  const fromSql = `FROM stock_exit_items i JOIN stock_exits e ON e.id = i.exit_id
+     LEFT JOIN stock_items s ON s.id = i.stock_item_id ${w.sql}`;
   const { rows, truncated } = await runLimited(
     db,
     `SELECT e.created_at, e.code, e.predat_de, e.predat_catre, e.solicitant, e.destinatie, e.observatii,
-            i.name, i.mijloc_fix, i.barcode, i.quantity, e.created_by
+            i.name, NULLIF(TRIM(s.description), '-') AS description, i.observatii AS obs_articol,
+            i.mijloc_fix, i.barcode, i.quantity, e.created_by
      ${fromSql} ORDER BY e.id, i.id`,
     w.params
   );
@@ -342,6 +346,8 @@ export async function exportExits(
     { key: 'destinatie', label: 'Destinație', type: 'text' },
     { key: 'observatii', label: 'Observații', type: 'text' },
     { key: 'name', label: 'Denumire', type: 'text' },
+    { key: 'description', label: 'Descriere', type: 'text' },
+    { key: 'obs_articol', label: 'Obs. articol', type: 'text' },
     { key: 'mijloc_fix', label: 'Mijloc fix', type: 'code' },
     { key: 'barcode', label: 'Cod scanat', type: 'code' },
     { key: 'quantity', label: 'Cantitate', type: 'number' },
@@ -357,6 +363,8 @@ export async function exportExits(
       s(r.destinatie),
       s(r.observatii),
       s(r.name),
+      s(r.description),
+      s(r.obs_articol),
       s(r.mijloc_fix),
       s(r.barcode),
       n(r.quantity),
@@ -468,7 +476,7 @@ export async function exportTickets(
   const { rows, truncated } = await runLimited(
     db,
     `SELECT t.ticket_code, t.client_name, t.status, t.created_by, u.company, t.created_at,
-            s.sku, s.barcode, s.name, s.company AS item_company,
+            s.sku, s.barcode, s.name, NULLIF(TRIM(s.description), '-') AS description, s.company AS item_company,
             ti.ordered_qty, ti.sent_qty, ti.delivered_qty, ti.return_out_qty, ti.received_back_qty
      ${fromSql} ORDER BY t.created_at, t.id, ti.id`,
     w.params
@@ -484,6 +492,7 @@ export async function exportTickets(
     { key: 'sku', label: 'SKU', type: 'code' },
     { key: 'barcode', label: 'Barcode', type: 'code' },
     { key: 'name', label: 'Denumire', type: 'text' },
+    { key: 'description', label: 'Descriere', type: 'text' },
     { key: 'item_company', label: 'Firmă articol', type: 'text' },
     { key: 'ordered_qty', label: 'Comandat', type: 'number' },
     { key: 'sent_qty', label: 'Trimis', type: 'number' },
@@ -502,6 +511,7 @@ export async function exportTickets(
       s(r.sku),
       s(r.barcode),
       s(r.name),
+      s(r.description),
       s(r.item_company),
       n(r.ordered_qty),
       n(r.sent_qty),

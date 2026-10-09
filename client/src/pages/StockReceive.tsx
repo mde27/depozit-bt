@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import BarcodeScanner from '../components/BarcodeScanner';
 import { api, ApiError } from '../lib/api';
+import { descriereLabel } from '../lib/descriere';
 import { provenientaLabel } from '../lib/labels';
 import { formatRoTime } from '../lib/time';
 import { useAuth } from '../lib/auth';
@@ -722,8 +723,10 @@ export default function StockReceive() {
               {lookup.item.denumire2 && (
                 <div className="text-sm text-success-900">{lookup.item.denumire2}</div>
               )}
-              {lookup.item.description && (
-                <div className="text-xs text-success-800/80">{lookup.item.description}</div>
+              {descriereLabel(lookup.stock?.description || lookup.item.description, lookup.item.denumire1, lookup.item.denumire2) && (
+                <div className="text-sm text-success-900">
+                  Descriere: {descriereLabel(lookup.stock?.description || lookup.item.description, lookup.item.denumire1, lookup.item.denumire2)}
+                </div>
               )}
               <div className="text-xs font-mono text-success-900 pt-1">
                 Mijloc fix: {lookup.item.mijloc_fix}
@@ -745,8 +748,10 @@ export default function StockReceive() {
                 {lookup.stock.name2 && (
                   <div className="text-sm text-success-900">{lookup.stock.name2}</div>
                 )}
-                {lookup.stock.description && (
-                  <div className="text-xs text-success-800/80">{lookup.stock.description}</div>
+                {descriereLabel(lookup.stock.description, lookup.stock.name, lookup.stock.name2) && (
+                  <div className="text-sm text-success-900">
+                    Descriere: {descriereLabel(lookup.stock.description, lookup.stock.name, lookup.stock.name2)}
+                  </div>
                 )}
                 <div className="text-xs text-success-900">
                   Nu este în catalog, dar a fost salvat deja în stoc.

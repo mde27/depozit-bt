@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
+import { descriereLabel } from '../lib/descriere';
 import { formatRoTime } from '../lib/time';
 import SearchBox, { EmptySearch, useUrlSearch } from '../components/SearchBox';
 import { matchesFields, resultsLabel, searchTokens } from '../lib/stockSearch';
@@ -74,6 +75,11 @@ export default function StockMovements() {
           <span className="font-medium">{String(item.name)}</span> · SKU {String(item.sku)} ·
           cod de bare {String(item.barcode || '—')} · stoc curent{' '}
           <strong>{String(item.quantity)}</strong>
+          {descriereLabel(item.description, item.name, item.name2) && (
+            <span className="block text-sm text-slate-600">
+              Descriere: {descriereLabel(item.description, item.name, item.name2)}
+            </span>
+          )}
         </p>
       )}
       {error && <p className="text-red-600">{error}</p>}

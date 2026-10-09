@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, ApiError } from '../lib/api';
+import { descriereLabel } from '../lib/descriere';
 import { useAuth } from '../lib/auth';
 import { downloadReceipt } from '../lib/receipt';
 import { formatRoTime } from '../lib/time';
@@ -110,6 +111,9 @@ export default function StockExitDetail() {
                       <Link to={`/stock/${it.stock_item_id}/movements`} className="hover:underline">
                         {it.name}
                       </Link>
+                      {descriereLabel(it.description, it.name) && (
+                        <div className="text-xs text-slate-600">Descriere: {descriereLabel(it.description, it.name)}</div>
+                      )}
                       {it.observatii && <div className="text-xs italic text-slate-600">Obs.: {it.observatii}</div>}
                     </td>
                     <td className="px-3 py-2 font-mono text-xs">{it.mijloc_fix || '—'}</td>

@@ -104,6 +104,8 @@ export interface StockExitItem {
   quantity: number;
   quantity_after: number | null;
   observatii?: string | null;
+  /** Descriere curentă a articolului din stoc */
+  description?: string | null;
 }
 
 export interface StockExit {
