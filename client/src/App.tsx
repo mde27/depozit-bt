@@ -16,6 +16,7 @@ import StockExitDetail from './pages/StockExitDetail';
 import Logs from './pages/Logs';
 import Users from './pages/Users';
 import Exports from './pages/Exports';
+import Comenzi from './pages/Comenzi';
 
 function Private({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -34,6 +35,13 @@ function Private({ children }: { children: React.ReactNode }) {
 function StockStaffOnly({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   if (user?.role !== 'admin' && user?.role !== 'user2') return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+}
+
+/** Comenzi: Admin, Client (doar ale lui) și Magazie. */
+function ComenziRoles({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  if (user?.role !== 'admin' && user?.role !== 'user1' && user?.role !== 'user2') return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 }
 
@@ -63,6 +71,14 @@ export default function App() {
         <Route path="tichete" element={<Tickets />} />
         <Route path="tichete/:id" element={<TicketDetail />} />
         <Route path="tichete/:id/scan/:stage" element={<TicketScanPage />} />
+        <Route
+          path="comenzi"
+          element={
+            <ComenziRoles>
+              <Comenzi />
+            </ComenziRoles>
+          }
+        />
         <Route path="stock" element={<Stock />} />
         <Route path="stock/receive" element={<StockReceive />} />
         <Route

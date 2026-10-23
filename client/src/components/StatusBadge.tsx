@@ -1,3 +1,5 @@
+import { TICKET_STATUS_LABELS as labels } from '../lib/labels';
+
 const colors: Record<string, string> = {
   ORDERED: 'bg-amber-50 text-amber-800 ring-amber-200',
   NEEDS_FIX: 'bg-orange-50 text-orange-800 ring-orange-200',
@@ -14,15 +16,6 @@ const dots: Record<string, string> = {
   DELIVERED: 'bg-success-500',
   RETURNING: 'bg-violet-500',
   CLOSED: 'bg-slate-400',
-};
-
-const labels: Record<string, string> = {
-  ORDERED: 'Comandat',
-  NEEDS_FIX: 'De corectat',
-  SENT: 'Trimis',
-  DELIVERED: 'Livrat',
-  RETURNING: 'Retur în curs',
-  CLOSED: 'Închis',
 };
 
 export default function StatusBadge({ status }: { status: string }) {

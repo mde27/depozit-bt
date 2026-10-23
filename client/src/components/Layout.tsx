@@ -40,6 +40,11 @@ export default function Layout() {
               Tichete
             </NavLink>
             {(role === 'admin' || role === 'user2' || role === 'user1') && (
+              <NavLink to="/comenzi" className={linkClass}>
+                Comenzi
+              </NavLink>
+            )}
+            {(role === 'admin' || role === 'user2' || role === 'user1') && (
               <NavLink to="/stock" end className={linkClass}>
                 Stoc
               </NavLink>

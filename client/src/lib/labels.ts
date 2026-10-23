@@ -3,6 +3,17 @@
  * Doar afișare: codurile din baza de date și din API rămân neschimbate.
  */
 
+/** Statusul unui tichet, în ordinea fluxului (tickets.status). */
+export const TICKET_STATUS_LABELS: Record<string, string> = {
+  ORDERED: 'Comandat',
+  NEEDS_FIX: 'De corectat',
+  SENT: 'Trimis',
+  DELIVERED: 'Livrat',
+  RETURNING: 'Retur în curs',
+  CLOSED: 'Închis',
+};
+export const TICKET_STATUSES = Object.keys(TICKET_STATUS_LABELS);
+
 /** Etapele de scanare ale unui tichet (ticket_scans.stage). */
 export const SCAN_STAGE_LABELS: Record<string, string> = {
   SEND: 'Trimitere',

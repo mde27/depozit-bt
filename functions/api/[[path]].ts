@@ -26,6 +26,7 @@ import {
   receiveStock,
   stockSummary,
 } from '../_lib/catalog';
+import { listComenzi } from '../_lib/comenzi';
 import { canManageStock, deleteStockItem, updateStockItem } from '../_lib/stock';
 import {
   exportExits,
@@ -429,6 +430,20 @@ async function handleExports(ctx: Ctx, parts: string[], method: string): Promise
   }
 }
 
+async function handleComenzi(ctx: Ctx, parts: string[], method: string): Promise<Response> {
+  const { request, env } = ctx;
+  const auth = await requireUser(request, env);
+  if (auth instanceof Response) return auth;
+  if (method !== 'GET' || parts.length) return error('Not found', 404);
+  try {
+    return json(await listComenzi(env.DB, auth.user, new URL(request.url).searchParams));
+  } catch (e: unknown) {
+    const err = e as Error & { status?: number };
+    if (!err.status) throw e;
+    return error(err.message, err.status);
+  }
+}
+
 async function handleStockExits(ctx: Ctx, parts: string[], method: string): Promise<Response> {
   const { request, env } = ctx;
   const auth = await requireUser(request, env);
@@ -632,6 +647,7 @@ export const onRequest: PagesFunction<Env> = async (ctx) => {
     if (parts[0] === 'stock') return handleStock(ctx, parts.slice(1), method);
     if (parts[0] === 'stock-exits') return handleStockExits(ctx, parts.slice(1), method);
     if (parts[0] === 'catalog') return handleCatalog(ctx, parts.slice(1), method);
+    if (parts[0] === 'comenzi') return handleComenzi(ctx, parts.slice(1), method);
     if (parts[0] === 'tickets') return handleTickets(ctx, parts.slice(1), method);
     if (parts[0] === 'logs') return handleLogs(ctx, method);
     if (parts[0] === 'users') return handleUsers(ctx, parts.slice(1), method);
